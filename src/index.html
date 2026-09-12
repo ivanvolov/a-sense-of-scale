@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Чувство масштаба — превью</title>
+<style>
+  /* Fonts are vendored from node_modules by tools/serve.js so the render is
+     byte-identical on any machine that ran `npm install`. */
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: block;
+    src: url('/vendor/inter/inter-cyrillic-400-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: block;
+    src: url('/vendor/inter/inter-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: block;
+    src: url('/vendor/inter/inter-cyrillic-500-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: block;
+    src: url('/vendor/inter/inter-latin-500-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: block;
+    src: url('/vendor/inter/inter-cyrillic-600-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: block;
+    src: url('/vendor/inter/inter-latin-600-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: block;
+    src: url('/vendor/inter/inter-cyrillic-700-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: block;
+    src: url('/vendor/inter/inter-latin-700-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-cyrillic-400-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-cyrillic-500-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-cyrillic-600-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: block;
+    src: url('/vendor/mono/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #07090f; color: #dbe3f2;
+    font: 14px/1.5 'Inter', system-ui, sans-serif; }
+  body { display: grid; grid-template-rows: 1fr auto; }
+  #stage { display: grid; place-items: center; overflow: hidden; padding: 16px; }
+  canvas { width: min(100%, calc((100vh - 150px) * 16 / 9)); height: auto;
+    box-shadow: 0 24px 70px rgba(0,0,0,.6); border-radius: 4px; display: block; }
+  #bar { display: flex; align-items: center; gap: 14px; padding: 12px 20px 18px;
+    border-top: 1px solid #1a2233; }
+  button { background: #182036; color: #dbe3f2;
+    border: 1px solid #2a3550; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+    font: 600 14px 'Inter', sans-serif; }
+  button:hover { background: #1f2a45; }
+  input[type=range] { flex: 1; accent-color: #ffcf5c; }
+  #time { font: 500 13px 'JetBrains Mono', monospace; color: #8593ad; min-width: 150px; }
+  #scene { font: 600 13px 'Inter', sans-serif; color: #ffcf5c; min-width: 190px; text-align: right; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
+  <div id="bar">
+    <button id="play">▶ Играть</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" step="1">
+    <span id="time">00.00 / 00.00</span>
+    <span id="scene"></span>
+  </div>
+
+<script type="module">
+import { renderFrame, FPS, DURATION, TOTAL_FRAMES, WIDTH, HEIGHT, manifest, sceneAt } from './film.js';
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+let frame = 0;
+let playing = false;
+let rafStart = 0, rafFrame0 = 0;
+
+function paint(n) {
+  frame = Math.max(0, Math.min(TOTAL_FRAMES - 1, Math.round(n)));
+  const t = frame / FPS;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  renderFrame(ctx, t);
+  document.getElementById('seek').value = String(Math.round((frame / (TOTAL_FRAMES - 1)) * 1000));
+  document.getElementById('time').textContent =
+    `${t.toFixed(2).padStart(5, '0')} / ${DURATION.toFixed(2)} · #${frame}`;
+  document.getElementById('scene').textContent = sceneAt(t).title;
+}
+
+function loop(now) {
+  if (!playing) return;
+  const elapsed = (now - rafStart) / 1000;
+  const n = rafFrame0 + elapsed * FPS;
+  if (n >= TOTAL_FRAMES) { paint(TOTAL_FRAMES - 1); setPlaying(false); return; }
+  paint(n);
+  requestAnimationFrame(loop);
+}
+
+function setPlaying(v) {
+  playing = v;
+  document.getElementById('play').textContent = v ? '❚❚ Пауза' : '▶ Играть';
+  if (v) {
+    if (frame >= TOTAL_FRAMES - 1) frame = 0;
+    rafFrame0 = frame;
+    rafStart = performance.now();
+    requestAnimationFrame(loop);
+  }
+}
+
+document.getElementById('play').onclick = () => setPlaying(!playing);
+document.getElementById('seek').oninput = (e) => {
+  setPlaying(false);
+  paint((Number(e.target.value) / 1000) * (TOTAL_FRAMES - 1));
+};
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+  if (e.code === 'ArrowRight') { setPlaying(false); paint(frame + (e.shiftKey ? 30 : 1)); }
+  if (e.code === 'ArrowLeft') { setPlaying(false); paint(frame - (e.shiftKey ? 30 : 1)); }
+});
+
+// The contract the headless renderer drives.
+window.film = {
+  WIDTH, HEIGHT, FPS, DURATION, TOTAL_FRAMES, manifest,
+  ready: document.fonts.ready.then(() => document.fonts.load('700 64px Inter', 'Земля'))
+    .then(() => document.fonts.load('600 64px "JetBrains Mono"', '0123456789 км'))
+    .then(() => { paint(0); return true; }),
+  seek(n) { paint(n); },
+  snapshot(type = 'image/png', quality) { return canvas.toDataURL(type, quality); },
+};
+
+window.film.ready.then(() => { document.body.dataset.ready = '1'; });
+</script>
+</body>
+</html>
