@@ -68,5 +68,8 @@ export function listen(port = 0) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT ?? 5178);
-  listen(port).then(({ url }) => console.log(`preview: ${url}`));
+  listen(port).then(({ url }) => {
+    console.log(`film preview : ${url}`);
+    console.log(`explorer     : ${url}explorer/index.html`);
+  });
 }

@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Deterministic canvas animation about cosmic scale, rendered to mp4 headlessly.",
+  "description": "Cosmic-scale explainer: a headlessly rendered film and an interactive pinch-to-zoom explorer, sharing one set of numbers.",
   "scripts": {
     "dev": "node tools/serve.js",
     "render": "node tools/capture.js",
-    "stills": "node tools/capture.js --stills"
+    "stills": "node tools/capture.js --stills",
+    "bundle": "node tools/bundle.js",
+    "shots": "node tools/shots.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",

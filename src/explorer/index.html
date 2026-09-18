@@ -1,0 +1,312 @@
+<title>A Sense of Scale</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --bg: #04060d;
+  --ink: #eaf0fb;
+  --dim: #8593ad;
+  --faint: #4a5670;
+  --line: #222d44;
+  --accent: #ffcf5c;
+  --cool: #5cd0ff;
+  --panel: rgba(8, 13, 25, 0.72);
+  --sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;   /* every gesture belongs to the camera, not the page */
+  cursor: grab;
+}
+#stage.dragging { cursor: grabbing; }
+
+.overlay {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2;
+}
+.overlay > * { pointer-events: auto; }
+
+/* ------------------------------------------------------------- top left --- */
+
+#topLeft {
+  top: max(18px, env(safe-area-inset-top));
+  left: max(18px, env(safe-area-inset-left));
+  max-width: min(46vw, 460px);
+}
+#brand {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+#worldTitle {
+  margin-top: 6px;
+  font-size: clamp(22px, 4.2vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+#worldHint {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+/* ------------------------------------------------------------ top right --- */
+
+#hud {
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  text-align: right;
+}
+#scalebar {
+  height: 10px;
+  border: 1px solid var(--accent);
+  border-top: none;
+  margin-left: auto;
+  transition: width .12s linear;
+}
+#scaleValue {
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--accent);
+}
+#scaleLight {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--dim);
+}
+#scaleLight b { color: var(--cool); font-weight: 600; }
+
+/* --------------------------------------------------------------- clock ---- */
+
+#clock {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  display: none;
+}
+#clock.on { display: block; }
+#clockTime {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--cool);
+  line-height: 1.1;
+}
+#clockLabel { font-size: 11px; color: var(--dim); margin-top: 4px; }
+#clockArrivals {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+  line-height: 1.6;
+  min-height: 1.6em;
+}
+#clockArrivals b { color: var(--ink); font-weight: 500; }
+
+/* -------------------------------------------------------------- bottom ---- */
+
+#bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px max(16px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(4, 6, 13, .95) 35%, rgba(4, 6, 13, 0));
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+#zoomRow { display: flex; align-items: center; gap: 12px; }
+#zoomOut, #zoomIn {
+  flex: none;
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+#zoom {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 34px;
+  background: transparent;
+  cursor: pointer;
+}
+#zoom::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: #232e46;
+}
+#zoom::-moz-range-track { height: 4px; border-radius: 2px; background: #232e46; }
+#zoom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px; margin-top: -9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #0b1120;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+#zoom::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #0b1120;
+}
+
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+#controls::-webkit-scrollbar { display: none; }
+
+button.chip {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+button.chip:hover { color: var(--ink); border-color: #38455f; }
+button.chip[aria-pressed="true"] {
+  color: #0b1120;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+button.chip.tool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
+.sep { flex: none; width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+
+/* ---------------------------------------------------------------- hint ---- */
+
+#firstRun {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 6, 13, .55);
+  backdrop-filter: blur(3px);
+  transition: opacity .45s ease;
+  cursor: pointer;
+}
+#firstRun.gone { opacity: 0; pointer-events: none; }
+#firstRunCard { text-align: center; padding: 24px 32px; }
+#firstRunCard .big {
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+#firstRunCard .small {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--dim);
+  line-height: 1.7;
+}
+#firstRunCard kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: var(--ink);
+}
+
+@media (max-width: 620px) {
+  #worldHint { display: none; }
+  #hud { top: max(14px, env(safe-area-inset-top)); }
+  #scaleValue { font-size: 16px; }
+  #clockTime { font-size: 21px; }
+}
+</style>
+
+<canvas id="stage"></canvas>
+
+<div class="overlay" id="topLeft">
+  <div id="brand">A Sense of Scale</div>
+  <div id="worldTitle">Earth &amp; Moon</div>
+  <div id="worldHint"></div>
+</div>
+
+<div class="overlay" id="hud">
+  <div id="scalebar" style="width:180px"></div>
+  <div id="scaleValue">—</div>
+  <div id="scaleLight">light crosses this in <b>—</b></div>
+
+  <div id="clock">
+    <div id="clockTime">0.00 s</div>
+    <div id="clockLabel">since the pulse left</div>
+    <div id="clockArrivals"></div>
+  </div>
+</div>
+
+<div class="overlay" id="bottom">
+  <div id="zoomRow">
+    <button id="zoomOut" title="Zoom out">−</button>
+    <input id="zoom" type="range" min="0" max="1000" value="500" step="1" aria-label="Zoom">
+    <button id="zoomIn" title="Zoom in">+</button>
+  </div>
+  <div id="controls">
+    <span id="tabs" style="display:contents"></span>
+    <span class="sep"></span>
+    <span id="tools" style="display:contents"></span>
+    <button class="chip" id="reset">Reset view</button>
+  </div>
+</div>
+
+<div id="firstRun">
+  <div id="firstRunCard">
+    <div class="big">Pinch, drag, zoom</div>
+    <div class="small">
+      Two fingers to zoom · one finger to pan<br>
+      On a desktop: scroll to zoom, drag to pan, <kbd>double-click</kbd> to reset
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
