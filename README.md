@@ -79,7 +79,7 @@ Vercel собирает сайт сам — сборке не нужен ни о
 
 | настройка | значение |
 |---|---|
-| Root Directory | `video/space-scale` |
+| Root Directory | `.` (корень репозитория) |
 | Install Command | `echo "no runtime dependencies"` |
 | Build Command | `node tools/site.js` |
 | Output Directory | `dist` |

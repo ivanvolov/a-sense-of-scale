@@ -1,9 +1,9 @@
 {
-  "name": "space-scale-video",
+  "name": "a-sense-of-scale",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cosmic-scale explainer: a headlessly rendered film and an interactive pinch-to-zoom explorer, sharing one set of numbers.",
+  "description": "Interactive explorer and a rendered film about cosmic scale, sharing one set of numbers.",
   "scripts": {
     "dev": "node tools/serve.js",
     "render": "node tools/capture.js",
