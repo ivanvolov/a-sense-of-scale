@@ -389,12 +389,6 @@ function updateHud() {
   el('scaleValue').textContent = bar.text;
   el('scaleLight').innerHTML = `light crosses this in <b>${lightTime(bar.metres)}</b>`;
 
-  if (!zoomHeld) {
-    const [lo, hi] = spanBounds();
-    // The slider runs inverted: pushing it right zooms in, like a magnifier.
-    el('zoom').value = String(Math.round((1 - (view.logSpan - lo) / (hi - lo)) * 1000));
-  }
-
   const showClock = pulse.on || pulse.sim > 0;
   el('clock').classList.toggle('on', showClock);
   if (showClock) {
@@ -433,8 +427,6 @@ function frame(now) {
 }
 
 // --------------------------------------------------------------------- UI ---
-
-let zoomHeld = false;
 
 function buildTabs() {
   el('tabs').innerHTML = '';
@@ -506,16 +498,6 @@ function selectWorld(id) {
   try { location.hash = world.id; } catch { /* sandboxed: fine, the tab still works */ }
 }
 
-el('zoom').addEventListener('pointerdown', () => { zoomHeld = true; tween = null; });
-addEventListener('pointerup', () => { zoomHeld = false; });
-el('zoom').addEventListener('input', (e) => {
-  const [lo, hi] = spanBounds();
-  const target = lo + (1 - Number(e.target.value) / 1000) * (hi - lo);
-  zoomAt(w / 2, h / 2, target - view.logSpan);
-  dismissHint();
-});
-el('zoomIn').onclick = () => { tween = null; zoomAt(w / 2, h / 2, -0.35); dismissHint(); };
-el('zoomOut').onclick = () => { tween = null; zoomAt(w / 2, h / 2, 0.35); dismissHint(); };
 el('reset').onclick = () => goHome();
 
 function dismissHint() {

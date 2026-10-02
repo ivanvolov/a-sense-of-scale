@@ -139,7 +139,7 @@ await og.evaluate(() => document.fonts.ready);
 await og.evaluate(() => {
   window.__explorer.select('solar-system');
   document.getElementById('firstRun').style.display = 'none';
-  document.getElementById('bottom').style.display = 'none';
+  document.getElementById('controls').style.visibility = 'hidden';
 });
 await og.waitForTimeout(400);
 await og.screenshot({ path: path.join(OUT, 'og.jpg'), type: 'jpeg', quality: 86 });

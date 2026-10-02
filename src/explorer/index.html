@@ -43,19 +43,36 @@ body {
 }
 #stage.dragging { cursor: grabbing; }
 
-.overlay {
+/* Everything lives along the top edge, so the whole lower screen stays free
+   for the thumb that is dragging the sky around. The chrome is transparent to
+   pointers except the controls themselves — a drag that starts on the title
+   still pans the canvas. */
+#chrome {
   position: fixed;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           30px max(16px, env(safe-area-inset-left));
+  background: linear-gradient(to bottom, rgba(4, 6, 13, .92) 30%, rgba(4, 6, 13, 0));
 }
-.overlay > * { pointer-events: auto; }
+
+#meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
 
 /* ------------------------------------------------------------- top left --- */
 
 #topLeft {
-  top: max(18px, env(safe-area-inset-top));
-  left: max(18px, env(safe-area-inset-left));
-  max-width: min(46vw, 460px);
+  max-width: min(52%, 460px);
 }
 #brand {
   font-size: 11px;
@@ -81,9 +98,8 @@ body {
 /* ------------------------------------------------------------ top right --- */
 
 #hud {
-  top: max(18px, env(safe-area-inset-top));
-  right: max(18px, env(safe-area-inset-right));
   text-align: right;
+  flex: none;
 }
 #scalebar {
   height: 10px;
@@ -138,66 +154,32 @@ body {
 
 /* -------------------------------------------------------------- bottom ---- */
 
-#bottom {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 14px max(16px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(4, 6, 13, .95) 35%, rgba(4, 6, 13, 0));
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-}
-
-#zoomRow { display: flex; align-items: center; gap: 12px; }
-#zoomOut, #zoomIn {
-  flex: none;
-  width: 34px; height: 34px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-#zoom {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 34px;
-  background: transparent;
-  cursor: pointer;
-}
-#zoom::-webkit-slider-runnable-track {
-  height: 4px; border-radius: 2px;
-  background: #232e46;
-}
-#zoom::-moz-range-track { height: 4px; border-radius: 2px; background: #232e46; }
-#zoom::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px; height: 22px; margin-top: -9px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 3px solid #0b1120;
-  box-shadow: 0 0 0 1px var(--accent);
-}
-#zoom::-moz-range-thumb {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 3px solid #0b1120;
-}
+/* ------------------------------------------------------------ controls ---- */
 
 #controls {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Narrow screens scroll the row; wide ones wrap it, where a hidden overflow
+     would be the easier thing to miss. */
   overflow-x: auto;
   scrollbar-width: none;
   padding-bottom: 2px;
 }
 #controls::-webkit-scrollbar { display: none; }
+
+@media (min-width: 860px) {
+  #controls { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
+}
+@media (max-width: 859px) {
+  /* Fade the trailing edge so the row reads as scrollable rather than as a
+     list that happens to end at the screen edge. */
+  #controls {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+}
 
 button.chip {
   flex: none;
@@ -298,36 +280,33 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
 
 <canvas id="stage"></canvas>
 
-<div class="overlay" id="topLeft">
-  <div id="brand">A Sense of Scale</div>
-  <div id="worldTitle">Earth &amp; Moon</div>
-  <div id="worldHint"></div>
-</div>
-
-<div class="overlay" id="hud">
-  <div id="scalebar" style="width:180px"></div>
-  <div id="scaleValue">—</div>
-  <div id="scaleLight">light crosses this in <b>—</b></div>
-
-  <div id="clock">
-    <div id="clockTime">0.00 s</div>
-    <div id="clockLabel">since the pulse left</div>
-    <div id="clockArrivals"></div>
-  </div>
-</div>
-
-<div class="overlay" id="bottom">
-  <div id="zoomRow">
-    <button id="zoomOut" title="Zoom out">−</button>
-    <input id="zoom" type="range" min="0" max="1000" value="500" step="1" aria-label="Zoom">
-    <button id="zoomIn" title="Zoom in">+</button>
-  </div>
+<div id="chrome">
   <div id="controls">
     <span id="tabs" style="display:contents"></span>
     <span class="sep"></span>
     <span id="tools" style="display:contents"></span>
     <button class="chip" id="reset">Reset view</button>
     <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
+  </div>
+
+  <div id="meta">
+    <div id="topLeft">
+      <div id="brand">A Sense of Scale</div>
+      <div id="worldTitle">Earth &amp; Moon</div>
+      <div id="worldHint"></div>
+    </div>
+
+    <div id="hud">
+      <div id="scalebar" style="width:180px"></div>
+      <div id="scaleValue">—</div>
+      <div id="scaleLight">light crosses this in <b>—</b></div>
+
+      <div id="clock">
+        <div id="clockTime">0.00 s</div>
+        <div id="clockLabel">since the pulse left</div>
+        <div id="clockArrivals"></div>
+      </div>
+    </div>
   </div>
 </div>
 
