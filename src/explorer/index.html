@@ -220,7 +220,38 @@ button.chip[aria-pressed="true"] {
   border-color: var(--accent);
 }
 button.chip.tool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
+button.chip.install { color: var(--accent); border-color: rgba(255, 207, 92, .45); }
+button.chip.install:hover { color: #0b1120; background: var(--accent); }
 .sep { flex: none; width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+
+/* ----------------------------------------------------- add-to-home sheet --- */
+
+/* `display: grid` would beat the UA rule for [hidden] and leave a full-screen
+   overlay swallowing every touch, so the attribute is honoured explicitly. */
+#iosSheet[hidden] { display: none; }
+#iosSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: end center;
+  background: rgba(4, 6, 13, .6);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+}
+#iosCard {
+  width: min(460px, 100%);
+  margin-bottom: max(20px, env(safe-area-inset-bottom));
+  padding: 22px 24px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #0b1120;
+}
+#iosCard .h { font-size: 19px; font-weight: 700; }
+#iosCard ol { margin: 14px 0 0; padding-left: 20px; color: var(--dim); font-size: 14.5px; line-height: 1.9; }
+#iosCard ol b { color: var(--ink); }
+#iosCard .gl { font-family: -apple-system, 'SF Pro Text', sans-serif; color: var(--cool); }
+#iosCard p { margin: 12px 0 16px; font-size: 13px; color: var(--faint); }
 
 /* ---------------------------------------------------------------- hint ---- */
 
@@ -296,6 +327,19 @@ button.chip.tool[aria-pressed="true"] { background: var(--cool); border-color: v
     <span class="sep"></span>
     <span id="tools" style="display:contents"></span>
     <button class="chip" id="reset">Reset view</button>
+    <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
+  </div>
+</div>
+
+<div id="iosSheet" hidden>
+  <div id="iosCard">
+    <div class="h">Add to Home Screen</div>
+    <ol>
+      <li>Tap <b>Share</b> <span class="gl">􀈂</span> in the Safari toolbar</li>
+      <li>Scroll down and choose <b>Add to Home Screen</b></li>
+    </ol>
+    <p>It opens full screen, with no browser chrome in the way.</p>
+    <button class="chip" id="iosClose">Got it</button>
   </div>
 </div>
 

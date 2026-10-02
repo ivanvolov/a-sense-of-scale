@@ -525,6 +525,51 @@ function dismissHint() {
 el('firstRun').onclick = dismissHint;
 setTimeout(dismissHint, 6500);
 
+// --------------------------------------------------- add to home screen ----
+
+/**
+ * Two different worlds. Chrome and Edge fire `beforeinstallprompt` and let us
+ * trigger the real installer; Safari has no such API, so iOS gets a card
+ * telling it where the Share menu is. Neither applies inside an iframe — there
+ * the install would bookmark the host page, not this one — nor once the app is
+ * already running from the home screen.
+ */
+const standalone = () =>
+  matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+const isIosSafari = () => {
+  const ua = navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  return iOS && !/CriOS|FxiOS|EdgiOS/.test(ua);
+};
+
+let installEvent = null;
+const installBtn = el('install');
+const framed = window.top !== window.self;
+
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEvent = e;
+  if (!framed && !standalone()) installBtn.hidden = false;
+});
+
+addEventListener('appinstalled', () => { installBtn.hidden = true; installEvent = null; });
+
+if (!framed && !standalone() && isIosSafari()) installBtn.hidden = false;
+
+installBtn.onclick = async () => {
+  if (installEvent) {
+    installEvent.prompt();
+    const { outcome } = await installEvent.userChoice;
+    installEvent = null;
+    if (outcome === 'accepted') installBtn.hidden = true;
+    return;
+  }
+  el('iosSheet').hidden = false;
+};
+el('iosClose').onclick = () => { el('iosSheet').hidden = true; };
+el('iosSheet').onclick = (e) => { if (e.target === el('iosSheet')) el('iosSheet').hidden = true; };
+
 // ------------------------------------------------------------------ helpers -
 
 function roundRect(x, y, bw, bh, r) {

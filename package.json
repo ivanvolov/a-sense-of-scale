@@ -9,9 +9,12 @@
     "render": "node tools/capture.js",
     "stills": "node tools/capture.js --stills",
     "bundle": "node tools/bundle.js",
-    "shots": "node tools/shots.js"
+    "shots": "node tools/shots.js",
+    "build": "node tools/site.js",
+    "verify": "node tools/verify-site.js",
+    "icons": "node tools/icons.js"
   },
-  "dependencies": {
+  "devDependencies": {
     "@fontsource/inter": "^5.0.0",
     "@fontsource/jetbrains-mono": "^5.0.0",
     "ffmpeg-static": "^5.2.0",
