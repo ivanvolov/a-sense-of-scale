@@ -5,10 +5,24 @@
 // an addition, a zoom tween is a straight line, and the slider is linear in
 // decades. Nothing anywhere multiplies its way toward a float32 cliff.
 
-import { clamp, lerp, easeInOut, rng } from '../lib/math.js';
-import { C_LIGHT } from '../lib/data.js';
+import { C_LIGHT } from './data.js';
 import { WORLDS, worldById } from './worlds.js';
 import { lengthStr, lightTime, clockFace, niceBar, duration } from './units.js';
+
+const clamp = (v, lo = 0, hi = 1) => (v < lo ? lo : v > hi ? hi : v);
+const lerp = (a, b, u) => a + (b - a) * u;
+const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+
+/** Deterministic PRNG (mulberry32) so the starfield is identical every run. */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d', { alpha: false });

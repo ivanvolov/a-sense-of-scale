@@ -3,21 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interactive explorer and a rendered film about cosmic scale, sharing one set of numbers.",
+  "description": "Interactive explorer for cosmic scale \u2014 pinch across 42 orders of magnitude.",
   "scripts": {
     "dev": "node tools/serve.js",
-    "render": "node tools/capture.js",
-    "stills": "node tools/capture.js --stills",
-    "bundle": "node tools/bundle.js",
-    "shots": "node tools/shots.js",
     "build": "node tools/site.js",
     "verify": "node tools/verify-site.js",
+    "bundle": "node tools/bundle.js",
+    "shots": "node tools/shots.js",
     "icons": "node tools/icons.js"
   },
   "devDependencies": {
-    "@fontsource/inter": "^5.0.0",
-    "@fontsource/jetbrains-mono": "^5.0.0",
-    "ffmpeg-static": "^5.2.0",
     "playwright": "^1.49.0"
   }
 }

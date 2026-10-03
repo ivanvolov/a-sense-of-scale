@@ -1,6 +1,6 @@
-// Every number the film shows on screen lives here, in SI units, with a source
-// note. Scenes read from this file — no magic numbers in the drawing code, so a
-// caption can never drift away from the geometry it describes.
+// Every number the app shows lives here, in SI units, with a source note.
+// The worlds read from this file — no magic numbers in the drawing code, so a
+// label can never drift away from the geometry it describes.
 //
 // Sources: NASA/JPL planetary fact sheets (equatorial radii, mean distances),
 // IAU 2012 definition of the astronomical unit, CODATA speed of light.
@@ -31,7 +31,8 @@ export const SUN = {
   color2: '#fff0c2',
 };
 
-// Moon's orbit is an ellipse — the film leans on that in the payoff of scene 1.
+// The Moon's orbit is an ellipse, which is what decides whether the other
+// seven planets fit in the gap.
 export const MOON_ORBIT = {
   mean: 384400 * KM,       // centre-to-centre
   perigee: 363300 * KM,
@@ -56,20 +57,6 @@ export const OTHER_PLANETS = [
 ];
 
 export const PLANETS_TOTAL_D = OTHER_PLANETS.reduce((s, p) => s + p.d, 0);
-
-/** Light-travel times used by scene 3. */
-export const LIGHT_TIMES = [
-  { name: 'to the Moon', s: MOON_ORBIT.mean / C_LIGHT },
-  { name: 'to the Sun', s: AU / C_LIGHT },
-  { name: 'to Neptune', s: (30.07 * AU) / C_LIGHT },
-  { name: 'to Proxima Centauri', s: 4.2465 * 31557600 },
-];
-
-// ---------------------------------------------------------------------------
-// Below this line: data used only by the interactive explorer. The film never
-// reads it, but it belongs in the same file so there is exactly one place where
-// a number about the solar system lives.
-// ---------------------------------------------------------------------------
 
 export const LY = 9.4607304725808e15;   // light-year, metres
 

@@ -2,7 +2,7 @@
 // it never touches the DOM, the camera or the input layer — `g` hands it a
 // camera and a set of primitives and it paints metres.
 
-import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, LADDER, gap } from '../lib/data.js';
+import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, LADDER, gap } from './data.js';
 import { lengthStr } from './units.js';
 
 // --------------------------------------------------------------- 01 ---------

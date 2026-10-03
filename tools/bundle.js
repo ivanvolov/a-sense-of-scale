@@ -13,8 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ENTRY_HTML = path.join(ROOT, 'src/explorer/index.html');
-const ENTRY_JS = path.join(ROOT, 'src/explorer/app.js');
+const ENTRY_HTML = path.join(ROOT, 'src/index.html');
+const ENTRY_JS = path.join(ROOT, 'src/app.js');
 
 const IMPORT_RE = /^[ \t]*import[\s\S]*?from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm;
 
@@ -55,7 +55,7 @@ function topLevelNames(body) {
   return names;
 }
 
-/** Inline every module into src/explorer/index.html and return the HTML. */
+/** Inline every module into src/index.html and return the HTML. */
 export async function buildBundle() {
   const modules = await collect(ENTRY_JS);
 

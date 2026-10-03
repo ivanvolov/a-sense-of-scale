@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { buildBundle } from './bundle.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ASSETS = path.join(ROOT, 'src/explorer/assets');
+const ASSETS = path.join(ROOT, 'src/assets');
 const DIST = path.join(ROOT, 'dist');
 
 const baseArg = process.argv.indexOf('--base');

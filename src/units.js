@@ -2,7 +2,7 @@
 // explorer goes through here so the same distance never appears as "0.0000001 km"
 // in one corner and "100 nm" in another.
 
-import { AU, C_LIGHT, LY } from '../lib/data.js';
+import { AU, C_LIGHT, LY } from './data.js';
 
 const SI = [
   { f: 1e-15, s: 'fm' },

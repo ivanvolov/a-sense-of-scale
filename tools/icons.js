@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 import { listen } from './serve.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'src/explorer/assets');
+const OUT = path.join(ROOT, 'src/assets');
 
 /**
  * Concentric rings with a lit core — the Powers of Ten view, reduced until it
@@ -133,7 +133,7 @@ for (const [file, inset] of [['icon.svg', 1], ['icon-maskable.svg', 0.72]]) {
 // Social preview: a real frame of the app rather than a mock-up of one.
 const { server, url } = await listen(0);
 const og = await browser.newPage({ viewport: { width: 1200, height: 630 }, ignoreHTTPSErrors: true });
-await og.goto(`${url}explorer/index.html`, { waitUntil: 'load' });
+await og.goto(url, { waitUntil: 'load' });
 await og.waitForFunction('window.__explorer !== undefined', null, { timeout: 15000 });
 await og.evaluate(() => document.fonts.ready);
 await og.evaluate(() => {

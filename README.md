@@ -1,14 +1,13 @@
 # A Sense of Scale
 
-Cosmic distances you can handle with your fingers, plus a short film that plays
-the same scenes on its own. Both are plain Canvas 2D, both read their numbers
-from one file, and neither needs a paid service to build or host.
+Cosmic distances you can handle with your fingers. Plain Canvas 2D, no
+dependencies at runtime, and nothing to pay for to build or host it.
 
 **→ [ivanvolov.github.io/a-sense-of-scale](https://ivanvolov.github.io/a-sense-of-scale/)**
 
 Install it from the browser menu and it runs full screen and offline.
 
-## The explorer
+## Using it
 
 Two fingers to zoom, one to pan. On a desktop: scroll, drag, double-click to
 reset, `+` `−` `0` on the keyboard.
@@ -18,7 +17,7 @@ reset, `+` `−` `0` on the keyboard.
 | **Earth & Moon** | Zoom out until the Moon shows up. One button lays the other seven planets into the gap — they overshoot by 3 724 km. |
 | **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. |
 | **Speed of Light** | A pulse leaving the Sun at the real speed of light, with a clock and a time multiplier. |
-| **Powers of Ten** | A ladder of concentric sizes from a proton to the observable universe. |
+| **Powers of Ten** | Concentric sizes from a proton to the observable universe. |
 
 The readout top right gives a scale bar and the time light needs to cross it.
 
@@ -26,10 +25,10 @@ The readout top right gives a scale bar and the time light needs to cross it.
 
 ```
 npm install
-npm run dev       # film preview + explorer on 127.0.0.1:5178
+npm run dev       # 127.0.0.1:5178
 npm run build     # dist/ — the deployable site
 npm run verify    # drives a browser over dist/: manifest, icons, offline, iOS install
-npm run render    # out/space-scale.mp4 — the film, 1080p, ~4 min
+npm run bundle    # out/explorer.html — the whole app as one file
 npm run shots     # screenshots (--device desktop|ipad|phone)
 npm run icons     # redraw icons and the social preview
 ```
@@ -48,20 +47,19 @@ disc. Rounding it up would lie about the one thing the page exists to show.
 
 ```
 src/
-  lib/data.js       every number, SI units, with its source
-  lib/math.js       easing, log interpolation, formatting
-  lib/draw.js       film primitives (fixed 1920×1080)
-  film.js           scene list + renderFrame(ctx, t)
-  scenes/           earth-moon · sun-au · light-speed · cards
-  explorer/         app.js (camera, gestures, HUD) · worlds.js · units.js
+  index.html   markup and styles
+  app.js       camera, gestures, drawing, HUD
+  worlds.js    the four modes: data plus one draw(g) each
+  units.js     formatting across 42 decades
+  data.js      every number, SI units, with its source
+  assets/      icons and the social preview
 tools/
-  serve.js  capture.js  bundle.js  site.js  icons.js  shots.js  verify-site.js
+  serve.js  bundle.js  site.js  icons.js  shots.js  verify-site.js
 ```
 
-`lib/data.js` feeds both the geometry and the captions describing it, so the two
-cannot drift apart. `renderFrame(ctx, t)` is pure — no clock, no unseeded random
-— which lets the headless renderer walk the timeline faster than real time and
-still match the preview.
+A world gets a camera and primitives through `g`; it never touches the DOM or
+the input layer. `data.js` feeds both the geometry and the labels describing it,
+so the two cannot drift apart.
 
 Every path in the build is relative: GitHub Pages serves a project site from a
 subdirectory, where absolute paths resolve one level too high. `npm run verify`

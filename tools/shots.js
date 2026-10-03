@@ -1,4 +1,4 @@
-// Screenshots of the explorer at chosen worlds and zoom levels. Used to eyeball
+// Screenshots of the app at chosen worlds and zoom levels. Used to eyeball
 // layout at sizes a person would actually hold: a desktop window and an iPad.
 //
 //   node tools/shots.js
@@ -60,7 +60,7 @@ page.on('pageerror', (e) => console.error('page error:', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.error('console:', m.text()); });
 
 await mkdir(OUT, { recursive: true });
-await page.goto(`${url}explorer/index.html`, { waitUntil: 'load' });
+await page.goto(url, { waitUntil: 'load' });
 await page.waitForFunction('window.__explorer !== undefined', null, { timeout: 15000 });
 await page.evaluate(() => document.fonts.ready);
 

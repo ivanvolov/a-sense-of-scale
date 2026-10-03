@@ -1,145 +1,335 @@
-<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<title>A Sense of Scale — film preview</title>
+<title>A Sense of Scale</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
 <style>
-  /* Fonts are vendored from node_modules by tools/serve.js so the render is
-     byte-identical on any machine that ran `npm install`. */
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: block;
-    src: url('/vendor/inter/inter-cyrillic-400-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: block;
-    src: url('/vendor/inter/inter-latin-400-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: block;
-    src: url('/vendor/inter/inter-cyrillic-500-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: block;
-    src: url('/vendor/inter/inter-latin-500-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: block;
-    src: url('/vendor/inter/inter-cyrillic-600-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: block;
-    src: url('/vendor/inter/inter-latin-600-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: block;
-    src: url('/vendor/inter/inter-cyrillic-700-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: block;
-    src: url('/vendor/inter/inter-latin-700-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-cyrillic-400-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-latin-400-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-cyrillic-500-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-latin-500-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-cyrillic-600-normal.woff2') format('woff2');
-    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: block;
-    src: url('/vendor/mono/jetbrains-mono-latin-600-normal.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
-
-  :root { color-scheme: dark; }
-  html, body { margin: 0; height: 100%; background: #07090f; color: #dbe3f2;
-    font: 14px/1.5 'Inter', system-ui, sans-serif; }
-  body { display: grid; grid-template-rows: 1fr auto; }
-  #stage { display: grid; place-items: center; overflow: hidden; padding: 16px; }
-  canvas { width: min(100%, calc((100vh - 150px) * 16 / 9)); height: auto;
-    box-shadow: 0 24px 70px rgba(0,0,0,.6); border-radius: 4px; display: block; }
-  #bar { display: flex; align-items: center; gap: 14px; padding: 12px 20px 18px;
-    border-top: 1px solid #1a2233; }
-  button { background: #182036; color: #dbe3f2;
-    border: 1px solid #2a3550; border-radius: 6px; padding: 8px 16px; cursor: pointer;
-    font: 600 14px 'Inter', sans-serif; }
-  button:hover { background: #1f2a45; }
-  input[type=range] { flex: 1; accent-color: #ffcf5c; }
-  #time { font: 500 13px 'JetBrains Mono', monospace; color: #8593ad; min-width: 150px; }
-  #scene { font: 600 13px 'Inter', sans-serif; color: #ffcf5c; min-width: 190px; text-align: right; }
-</style>
-</head>
-<body>
-  <div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
-  <div id="bar">
-    <button id="play">▶ Play</button>
-    <input id="seek" type="range" min="0" max="1000" value="0" step="1">
-    <span id="time">00.00 / 00.00</span>
-    <span id="scene"></span>
-  </div>
-
-<script type="module">
-import { renderFrame, FPS, DURATION, TOTAL_FRAMES, WIDTH, HEIGHT, manifest, sceneAt } from './film.js';
-
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d', { alpha: false });
-
-let frame = 0;
-let playing = false;
-let rafStart = 0, rafFrame0 = 0;
-
-function paint(n) {
-  frame = Math.max(0, Math.min(TOTAL_FRAMES - 1, Math.round(n)));
-  const t = frame / FPS;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  renderFrame(ctx, t);
-  document.getElementById('seek').value = String(Math.round((frame / (TOTAL_FRAMES - 1)) * 1000));
-  document.getElementById('time').textContent =
-    `${t.toFixed(2).padStart(5, '0')} / ${DURATION.toFixed(2)} · #${frame}`;
-  document.getElementById('scene').textContent = sceneAt(t).title;
+:root {
+  --bg: #04060d;
+  --ink: #eaf0fb;
+  --dim: #8593ad;
+  --faint: #4a5670;
+  --line: #222d44;
+  --accent: #ffcf5c;
+  --cool: #5cd0ff;
+  --panel: rgba(8, 13, 25, 0.72);
+  --sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
 }
 
-function loop(now) {
-  if (!playing) return;
-  const elapsed = (now - rafStart) / 1000;
-  const n = rafFrame0 + elapsed * FPS;
-  if (n >= TOTAL_FRAMES) { paint(TOTAL_FRAMES - 1); setPlaying(false); return; }
-  paint(n);
-  requestAnimationFrame(loop);
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-function setPlaying(v) {
-  playing = v;
-  document.getElementById('play').textContent = v ? '❚❚ Pause' : '▶ Play';
-  if (v) {
-    if (frame >= TOTAL_FRAMES - 1) frame = 0;
-    rafFrame0 = frame;
-    rafStart = performance.now();
-    requestAnimationFrame(loop);
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;   /* every gesture belongs to the camera, not the page */
+  cursor: grab;
+}
+#stage.dragging { cursor: grabbing; }
+
+/* Everything lives along the top edge, so the whole lower screen stays free
+   for the thumb that is dragging the sky around. The chrome is transparent to
+   pointers except the controls themselves — a drag that starts on the title
+   still pans the canvas. */
+#chrome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           30px max(16px, env(safe-area-inset-left));
+  background: linear-gradient(to bottom, rgba(4, 6, 13, .92) 30%, rgba(4, 6, 13, 0));
+}
+
+#meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* ------------------------------------------------------------- top left --- */
+
+#topLeft {
+  max-width: min(52%, 460px);
+}
+#brand {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+#worldTitle {
+  margin-top: 6px;
+  font-size: clamp(22px, 4.2vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+#worldHint {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+/* ------------------------------------------------------------ top right --- */
+
+#hud {
+  text-align: right;
+  flex: none;
+}
+#scalebar {
+  height: 10px;
+  border: 1px solid var(--accent);
+  border-top: none;
+  margin-left: auto;
+  transition: width .12s linear;
+}
+#scaleValue {
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--accent);
+}
+#scaleLight {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--dim);
+}
+#scaleLight b { color: var(--cool); font-weight: 600; }
+
+/* --------------------------------------------------------------- clock ---- */
+
+#clock {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  display: none;
+}
+#clock.on { display: block; }
+#clockTime {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--cool);
+  line-height: 1.1;
+}
+#clockLabel { font-size: 11px; color: var(--dim); margin-top: 4px; }
+#clockArrivals {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+  line-height: 1.6;
+  min-height: 1.6em;
+}
+#clockArrivals b { color: var(--ink); font-weight: 500; }
+
+/* -------------------------------------------------------------- bottom ---- */
+
+/* ------------------------------------------------------------ controls ---- */
+
+#controls {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Narrow screens scroll the row; wide ones wrap it, where a hidden overflow
+     would be the easier thing to miss. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+#controls::-webkit-scrollbar { display: none; }
+
+@media (min-width: 860px) {
+  #controls { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
+}
+@media (max-width: 859px) {
+  /* Fade the trailing edge so the row reads as scrollable rather than as a
+     list that happens to end at the screen edge. */
+  #controls {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
   }
 }
 
-document.getElementById('play').onclick = () => setPlaying(!playing);
-document.getElementById('seek').oninput = (e) => {
-  setPlaying(false);
-  paint((Number(e.target.value) / 1000) * (TOTAL_FRAMES - 1));
-};
-addEventListener('keydown', (e) => {
-  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
-  if (e.code === 'ArrowRight') { setPlaying(false); paint(frame + (e.shiftKey ? 30 : 1)); }
-  if (e.code === 'ArrowLeft') { setPlaying(false); paint(frame - (e.shiftKey ? 30 : 1)); }
-});
+button.chip {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+button.chip:hover { color: var(--ink); border-color: #38455f; }
+button.chip[aria-pressed="true"] {
+  color: #0b1120;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+button.chip.tool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
+button.chip.install { color: var(--accent); border-color: rgba(255, 207, 92, .45); }
+button.chip.install:hover { color: #0b1120; background: var(--accent); }
+.sep { flex: none; width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
 
-// The contract the headless renderer drives.
-window.film = {
-  WIDTH, HEIGHT, FPS, DURATION, TOTAL_FRAMES, manifest,
-  ready: document.fonts.ready.then(() => document.fonts.load('700 64px Inter', 'Earth'))
-    .then(() => document.fonts.load('600 64px "JetBrains Mono"', '0123456789 km'))
-    .then(() => { paint(0); return true; }),
-  seek(n) { paint(n); },
-  snapshot(type = 'image/png', quality) { return canvas.toDataURL(type, quality); },
-};
+/* ----------------------------------------------------- add-to-home sheet --- */
 
-window.film.ready.then(() => { document.body.dataset.ready = '1'; });
-</script>
-</body>
-</html>
+/* `display: grid` would beat the UA rule for [hidden] and leave a full-screen
+   overlay swallowing every touch, so the attribute is honoured explicitly. */
+#iosSheet[hidden] { display: none; }
+#iosSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: end center;
+  background: rgba(4, 6, 13, .6);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+}
+#iosCard {
+  width: min(460px, 100%);
+  margin-bottom: max(20px, env(safe-area-inset-bottom));
+  padding: 22px 24px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #0b1120;
+}
+#iosCard .h { font-size: 19px; font-weight: 700; }
+#iosCard ol { margin: 14px 0 0; padding-left: 20px; color: var(--dim); font-size: 14.5px; line-height: 1.9; }
+#iosCard ol b { color: var(--ink); }
+#iosCard .gl { font-family: -apple-system, 'SF Pro Text', sans-serif; color: var(--cool); }
+#iosCard p { margin: 12px 0 16px; font-size: 13px; color: var(--faint); }
+
+/* ---------------------------------------------------------------- hint ---- */
+
+#firstRun {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 6, 13, .55);
+  backdrop-filter: blur(3px);
+  transition: opacity .45s ease;
+  cursor: pointer;
+}
+#firstRun.gone { opacity: 0; pointer-events: none; }
+#firstRunCard { text-align: center; padding: 24px 32px; }
+#firstRunCard .big {
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+#firstRunCard .small {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--dim);
+  line-height: 1.7;
+}
+#firstRunCard kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: var(--ink);
+}
+
+@media (max-width: 620px) {
+  #worldHint { display: none; }
+  #hud { top: max(14px, env(safe-area-inset-top)); }
+  #scaleValue { font-size: 16px; }
+  #clockTime { font-size: 21px; }
+}
+</style>
+
+<canvas id="stage"></canvas>
+
+<div id="chrome">
+  <div id="controls">
+    <span id="tabs" style="display:contents"></span>
+    <span class="sep"></span>
+    <span id="tools" style="display:contents"></span>
+    <button class="chip" id="reset">Reset view</button>
+    <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
+  </div>
+
+  <div id="meta">
+    <div id="topLeft">
+      <div id="brand">A Sense of Scale</div>
+      <div id="worldTitle">Earth &amp; Moon</div>
+      <div id="worldHint"></div>
+    </div>
+
+    <div id="hud">
+      <div id="scalebar" style="width:180px"></div>
+      <div id="scaleValue">—</div>
+      <div id="scaleLight">light crosses this in <b>—</b></div>
+
+      <div id="clock">
+        <div id="clockTime">0.00 s</div>
+        <div id="clockLabel">since the pulse left</div>
+        <div id="clockArrivals"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="iosSheet" hidden>
+  <div id="iosCard">
+    <div class="h">Add to Home Screen</div>
+    <ol>
+      <li>Tap <b>Share</b> <span class="gl">􀈂</span> in the Safari toolbar</li>
+      <li>Scroll down and choose <b>Add to Home Screen</b></li>
+    </ol>
+    <p>It opens full screen, with no browser chrome in the way.</p>
+    <button class="chip" id="iosClose">Got it</button>
+  </div>
+</div>
+
+<div id="firstRun">
+  <div id="firstRunCard">
+    <div class="big">Pinch, drag, zoom</div>
+    <div class="small">
+      Two fingers to zoom · one finger to pan<br>
+      On a desktop: scroll to zoom, drag to pan, <kbd>double-click</kbd> to reset
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>

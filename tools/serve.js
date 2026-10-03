@@ -1,21 +1,13 @@
-// Tiny static server. ES modules refuse to load over file://, and the renderer
-// needs the exact same URLs the browser preview uses, so both go through here.
+// Tiny static server for src/. ES modules refuse to load over file://, and the
+// screenshot and icon tools need the same URLs a browser would use.
 
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
-
-// Fonts are pulled straight out of node_modules — nothing binary is committed.
-const FONT_DIRS = {
-  '/vendor/inter/': path.dirname(require.resolve('@fontsource/inter/package.json')) + '/files/',
-  '/vendor/mono/': path.dirname(require.resolve('@fontsource/jetbrains-mono/package.json')) + '/files/',
-};
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -26,12 +18,6 @@ const TYPES = {
 };
 
 function resolve(urlPath) {
-  for (const [prefix, dir] of Object.entries(FONT_DIRS)) {
-    if (urlPath.startsWith(prefix)) {
-      const name = path.basename(urlPath.slice(prefix.length));
-      return path.join(dir, name);
-    }
-  }
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
   const abs = path.join(SRC, rel);
   // Never serve anything outside src/ through the generic branch.
@@ -68,8 +54,5 @@ export function listen(port = 0) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT ?? 5178);
-  listen(port).then(({ url }) => {
-    console.log(`film preview : ${url}`);
-    console.log(`explorer     : ${url}explorer/index.html`);
-  });
+  listen(port).then(({ url }) => console.log(url));
 }
