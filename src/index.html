@@ -72,11 +72,12 @@ body {
 /* ------------------------------------------------------------- top left --- */
 
 #topLeft {
-  max-width: min(52%, 460px);
+  flex: none;
 }
 #brand {
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.45;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--accent);
@@ -89,7 +90,8 @@ body {
   line-height: 1.1;
 }
 #worldHint {
-  margin-top: 6px;
+  /* Pulls the first line onto the wordmark's baseline across the frame. */
+  margin-top: -2px;
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--dim);
@@ -99,8 +101,9 @@ body {
 
 #topRight {
   text-align: right;
-  flex: none;
-  max-width: min(46%, 420px);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(62%, 680px);
 }
 /* The one readout that belongs on every mode, parked where nothing else is
    and where a thumb dragging the canvas will not cover it. It never takes
@@ -146,7 +149,14 @@ body {
   backdrop-filter: blur(10px);
   display: none;
 }
-#clock.on { display: block; }
+/* Shrink to the readout rather than filling the column the description needs. */
+#clock.on { display: block; width: fit-content; margin-left: auto; }
+#clockHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
 #clockTime {
   font-family: var(--mono);
   font-size: 26px;
@@ -154,7 +164,7 @@ body {
   color: var(--cool);
   line-height: 1.1;
 }
-#clockLabel { font-size: 11px; color: var(--dim); margin-top: 4px; }
+#clockLabel { font-size: 11px; color: var(--dim); text-align: left; }
 #clockArrivals {
   margin-top: 8px;
   font-family: var(--mono);
@@ -326,8 +336,10 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
     <div id="topRight">
       <div id="worldHint"></div>
       <div id="clock">
-        <div id="clockTime">0.00 s</div>
-        <div id="clockLabel">since the pulse left</div>
+        <div id="clockHead">
+          <div id="clockLabel">since the pulse left</div>
+          <div id="clockTime">0.00 s</div>
+        </div>
         <div id="clockArrivals"></div>
       </div>
     </div>

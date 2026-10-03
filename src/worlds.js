@@ -77,7 +77,9 @@ const solarSystem = {
   title: 'Solar System',
   hint: 'Mostly empty: pinch in on a planet and it never gets big. Send a pulse of light and watch how long it takes to cross.',
   span: [1e7, 3e13],
-  home: { cx: 0, cy: 0, logSpan: Math.log10(1.25e13) },
+  // Opens close in, where the Sun and the Earth are both in frame and a
+  // pulse reaches something while you are still watching.
+  home: { cx: 5.6e10, cy: -3.0e10, logSpan: Math.log10(6.2e11) },
   tools: ['light'],
   timeScales: [1, 60, 600, 3600],
   lightOrigin: { x: 0, y: 0 },
