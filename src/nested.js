@@ -132,18 +132,23 @@ export function createNested({ ctx, el, palette }) {
       const need = 70 * a.s + 70 * c.s + 12;
       if (a.x - c.x < need) a.x = Math.min(w - 54, c.x + need);
     }
-    for (const p of placed) medallion(p.b, p.x, y - barH / 2, p.s, p.alpha);
+    let sliverDisc = null;
+    for (const p of placed) {
+      const disc = medallion(p.b, p.x, y - barH / 2, p.s, p.alpha);
+      if (p.b.i === Math.round(pos) - 1) sliverDisc = disc;
+    }
+    if (sliverDisc) trail(sliverDisc);
 
     ratio(y, barH, full, ppm);
   }
 
-  function medallion(b, x, barTop, s, alpha) {
+  function medallion(b, x, barTop, s, alpha, trail = false) {
     const r = RUNGS[b.i];
     const big = !compact();
     const R = mix(big ? 24 : 20, big ? 46 : 36, s);
     const chipFont = mix(12, big ? 17 : 15, s);
     const sizeFont = mix(11, big ? 14 : 13, s);
-    const showNote = s > 0.6 && r.note;
+    const showNote = s > 0.6 && r.note && !trail;
 
     // Stacked upward from the bar: a short stalk, the size (and what was
     // measured), the name chip, then the disc — nothing sits on the stalk.
@@ -158,12 +163,14 @@ export function createNested({ ctx, el, palette }) {
     ctx.globalAlpha = alpha;
     ctx.textAlign = 'center';
 
-    ctx.strokeStyle = r.color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, barTop - 1);
-    ctx.lineTo(x, barTop - stalk + 2);
-    ctx.stroke();
+    if (!trail) {
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, barTop - 1);
+      ctx.lineTo(x, barTop - stalk + 2);
+      ctx.stroke();
+    }
 
     ctx.font = sans(chipFont, 600);
     const cw = ctx.measureText(r.name).width + 24;
@@ -199,6 +206,54 @@ export function createNested({ ctx, el, palette }) {
     ctx.fillText(r.glyph, cx, cy + R * 0.06);
 
     ctx.restore();
+    return { cx, cy, R };
+  }
+
+  /**
+   * The rungs below the sliver, which would be sub-pixel on the bar, climb
+   * away from it as a staircase of small medallions, each with the ratio to
+   * the one beneath. Two steps on a phone, three on anything wider.
+   */
+  function trail(from) {
+    const i = Math.round(pos);
+    const fade = clip(1 - Math.abs(pos - i) / 0.35);
+    if (fade <= 0) return;
+    const steps = Math.min(compact() ? 2 : 3, i - 1);
+    const dx = compact() ? 96 : 128, dy = compact() ? 60 : 64;
+    let prev = from;
+    for (let j = 1; j <= steps; j++) {
+      const r = i - 1 - j;
+      // Place the disc, then draw the medallion around that point: the
+      // function lays its chip and size beneath, so hand it the bar-top that
+      // puts the disc where we want it.
+      const cx = from.cx - j * dx;
+      const cy = from.cy - j * dy;
+      const alpha = fade * (0.7 - 0.15 * j);
+      const disc = medallion({ i: r }, cx, cy + trailDrop(), 0, alpha, true);
+
+      // A thin link and the ratio between neighbours, sitting on the link.
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = palette.faint;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(disc.cx + disc.R + 4, disc.cy + 6);
+      ctx.lineTo(prev.cx - prev.R - 4, prev.cy - 6);
+      ctx.stroke();
+      ctx.font = mono(11, 600);
+      ctx.fillStyle = palette.dim;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`× ${ratioStr(RUNGS[r + 1].d / RUNGS[r].d)}`, (disc.cx + prev.cx) / 2 + 14, (disc.cy + prev.cy) / 2 - 10);
+      ctx.restore();
+      prev = disc;
+    }
+  }
+
+  /** Vertical distance from a small medallion's disc centre down to the bar-top it is laid out against. */
+  function trailDrop() {
+    const R = compact() ? 20 : 24, chipFont = 12, sizeFont = 11;
+    return 12 + (sizeFont + 4) + 6 + (chipFont + 14) + 4 + R;
   }
 
   /** "× 340" under the bar: how many of the sliver fit across the full one. */
