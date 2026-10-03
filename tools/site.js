@@ -2,10 +2,14 @@
 // turns a web page into something you can keep on a home screen — a manifest,
 // a service worker, icons, and the meta tags iOS reads instead of the manifest.
 //
+// Every path it emits is relative, because GitHub Pages serves a project site
+// from a subdirectory (/<repo>/) rather than from the origin root — absolute
+// paths would resolve one level too high and 404.
+//
 //   node tools/site.js
-//   node tools/site.js --base https://scale.example.com   # absolute og:image
+//   node tools/site.js --base https://user.github.io/repo   # absolute og:image
 
-import { mkdir, writeFile, readdir, copyFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, readdir, copyFile, readFile, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +20,7 @@ const ASSETS = path.join(ROOT, 'src/explorer/assets');
 const DIST = path.join(ROOT, 'dist');
 
 const baseArg = process.argv.indexOf('--base');
-const BASE = baseArg > -1 ? process.argv[baseArg + 1].replace(/\/$/, '') : '';
+const BASE = baseArg > -1 ? `${process.argv[baseArg + 1].replace(/\/+$/, '')}/` : '';
 
 const NAME = 'A Sense of Scale';
 const SHORT = 'Scale';
@@ -24,12 +28,11 @@ const DESC = 'Pinch and drag your way across 42 orders of magnitude — the Eart
   + 'light crawling outward at its real speed, and a ladder from a proton to the observable universe.';
 
 const MANIFEST = {
-  id: '/',
   name: NAME,
   short_name: SHORT,
   description: DESC,
-  start_url: '/',
-  scope: '/',
+  start_url: '.',
+  scope: './',
   display: 'standalone',
   display_override: ['standalone', 'minimal-ui'],
   orientation: 'any',
@@ -37,34 +40,18 @@ const MANIFEST = {
   theme_color: '#060a16',
   categories: ['education', 'science'],
   icons: [
-    { src: '/assets/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-    { src: '/assets/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-    { src: '/assets/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-    { src: '/assets/icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+    { src: './assets/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: './assets/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: './assets/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+    { src: './assets/icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
   ],
   // Long-press the home-screen icon and jump straight into one mode. The app
   // already boots from location.hash, so these need no extra code.
   shortcuts: [
-    { name: 'Earth & Moon', url: '/#earth-moon' },
-    { name: 'Solar System', url: '/#solar-system' },
-    { name: 'Speed of Light', url: '/#light-speed' },
-    { name: 'Powers of Ten', url: '/#powers-of-ten' },
-  ],
-};
-
-const VERCEL = {
-  cleanUrls: true,
-  headers: [
-    {
-      // The page and the worker are the update channel: never let a CDN or a
-      // browser pin an old one, or an install would be frozen at this build.
-      source: '/(index.html|sw.js|manifest.webmanifest)',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
-    },
-    {
-      source: '/assets/(.*)',
-      headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
-    },
+    { name: 'Earth & Moon', url: './#earth-moon' },
+    { name: 'Solar System', url: './#solar-system' },
+    { name: 'Speed of Light', url: './#light-speed' },
+    { name: 'Powers of Ten', url: './#powers-of-ten' },
   ],
 };
 
@@ -72,10 +59,10 @@ const head = (version) => `
 <meta name="description" content="${DESC}">
 <meta name="theme-color" content="#060a16">
 <meta name="color-scheme" content="dark">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
-<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="./assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -84,7 +71,7 @@ const head = (version) => `
 <meta property="og:type" content="website">
 <meta property="og:title" content="${NAME}">
 <meta property="og:description" content="${DESC}">
-<meta property="og:image" content="${BASE}/assets/og.jpg">
+<meta property="og:image" content="${BASE}./assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <!-- build ${version} -->
 `.trim();
@@ -94,7 +81,7 @@ const REGISTER = `
   // Offline is the point once it lives on a home screen: launching from the
   // icon with no signal should still work.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+    addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
 </script>
 `.trim();
@@ -104,9 +91,11 @@ const VERSION = '${version}';
 const SHELL = 'shell-' + VERSION;
 const FONTS = 'fonts-v1';
 
+// Relative to the worker's own URL, so the same file works at the origin root
+// and under a project path like /a-sense-of-scale/.
 const SHELL_URLS = [
-  '/', '/index.html', '/manifest.webmanifest',
-  '/assets/icon.svg', '/assets/icon-192.png', '/assets/apple-touch-icon.png',
+  './', './index.html', './manifest.webmanifest',
+  './assets/icon.svg', './assets/icon-192.png', './assets/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -147,10 +136,10 @@ self.addEventListener('fetch', (e) => {
       fetch(request)
         .then((res) => {
           const copy = res.clone();
-          caches.open(SHELL).then((c) => c.put('/index.html', copy));
+          caches.open(SHELL).then((c) => c.put('./index.html', copy));
           return res;
         })
-        .catch(() => caches.match('/index.html').then((r) => r || caches.match('/'))),
+        .catch(() => caches.match('./index.html').then((r) => r || caches.match('./'))),
     );
     return;
   }
@@ -179,11 +168,14 @@ const page = html
 
 if (!page.includes('rel="manifest"')) throw new Error('head injection failed — did the <title> line move?');
 
+// Start clean: a file dropped from the build should not survive in the output.
+await rm(DIST, { recursive: true, force: true });
 await mkdir(path.join(DIST, 'assets'), { recursive: true });
 await writeFile(path.join(DIST, 'index.html'), `${page}\n${REGISTER}\n`);
 await writeFile(path.join(DIST, 'manifest.webmanifest'), `${JSON.stringify(MANIFEST, null, 2)}\n`);
 await writeFile(path.join(DIST, 'sw.js'), sw(version));
-await writeFile(path.join(DIST, 'vercel.json'), `${JSON.stringify(VERCEL, null, 2)}\n`);
+// Keeps GitHub Pages from running the output through Jekyll.
+await writeFile(path.join(DIST, '.nojekyll'), '');
 
 for (const file of await readdir(ASSETS)) {
   await copyFile(path.join(ASSETS, file), path.join(DIST, 'assets', file));

@@ -7,7 +7,7 @@ import { ramp, window_, easeOut, clamp } from '../lib/math.js';
 
 export const intro = {
   id: 'intro',
-  title: 'Заставка',
+  title: 'Title card',
   duration: 4.2,
   draw(ctx, t) {
     clear(ctx, { glow: 0.25 });
@@ -21,16 +21,16 @@ export const intro = {
     ctx.font = sans(22, 600);
     ctx.fillStyle = PALETTE.accent;
     ctx.letterSpacing = '0.34em';
-    ctx.fillText('ЧУВСТВО МАСШТАБА', W / 2, H / 2 - 110);
+    ctx.fillText('A SENSE OF SCALE', W / 2, H / 2 - 110);
     ctx.letterSpacing = '0px';
 
     ctx.font = sans(132, 700);
     ctx.fillStyle = PALETTE.ink;
-    ctx.fillText('Три расстояния', W / 2, H / 2 + 10);
+    ctx.fillText('Three distances', W / 2, H / 2 + 10);
 
     ctx.font = sans(36, 400);
     ctx.fillStyle = PALETTE.dim;
-    ctx.fillText('которые не помещаются в голову', W / 2, H / 2 + 80);
+    ctx.fillText('that will not fit in your head', W / 2, H / 2 + 80);
 
     const rule = easeOut(ramp(t, 1.0, 2.4));
     ctx.strokeStyle = hexA(PALETTE.accent, 0.6);
@@ -47,7 +47,7 @@ export const intro = {
 
 export const outro = {
   id: 'outro',
-  title: 'Финал',
+  title: 'End card',
   duration: 6.0,
   draw(ctx, t) {
     clear(ctx, { glow: 0.2 });
@@ -59,17 +59,17 @@ export const outro = {
     ctx.textAlign = 'center';
     ctx.font = sans(72, 700);
     ctx.fillStyle = PALETTE.ink;
-    ctx.fillText('Ничего здесь не нарисовано «на глаз»', W / 2, 420);
+    ctx.fillText('None of this is drawn by eye', W / 2, 420);
     ctx.font = sans(34, 400);
     ctx.fillStyle = PALETTE.dim;
-    ctx.fillText('Геометрия кадра и подписи к ней берутся из одних и тех же чисел.', W / 2, 480);
+    ctx.fillText('The geometry and the captions describing it come from the same numbers.', W / 2, 480);
     ctx.restore();
 
     const rows = [
-      ['Радиусы и расстояния', 'NASA/JPL Planetary Fact Sheets'],
-      ['Астрономическая единица', 'IAU 2012, 149 597 870 700 м'],
-      ['Скорость света', 'CODATA, 299 792 458 м/с — точно, по определению'],
-      ['Орбита Луны', 'перигей 363 300 км · апогей 405 500 км'],
+      ['Radii and distances', 'NASA/JPL Planetary Fact Sheets'],
+      ['Astronomical unit', 'IAU 2012, 149 597 870 700 m'],
+      ['Speed of light', 'CODATA, 299 792 458 m/s — exact, by definition'],
+      ['Lunar orbit', 'perigee 363 300 km · apogee 405 500 km'],
     ];
 
     const boxW = 1180, boxH = 300;
@@ -88,7 +88,7 @@ export const outro = {
     ctx.font = sans(20, 600);
     ctx.fillStyle = PALETTE.accent;
     ctx.letterSpacing = '0.24em';
-    ctx.fillText('ИСТОЧНИКИ ЧИСЕЛ', x + 44, y + 48);
+    ctx.fillText('WHERE THE NUMBERS COME FROM', x + 44, y + 48);
     ctx.letterSpacing = '0px';
 
     rows.forEach((r, i) => {

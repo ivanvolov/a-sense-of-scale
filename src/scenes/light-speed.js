@@ -1,8 +1,8 @@
-// Scene 03 — Скорость света.
+// Scene 03 — The speed of light.
 //
 // The trick of this scene is that the screen distance never changes — only what
 // it means. First it is 384 400 km and a photon crosses it in real time, in
-// 1,28 s. Then the same strip of screen becomes 1 а. е., the photon keeps its
+// 1.28 s. Then the same strip of screen becomes 1 AU, the photon keeps its
 // real speed, and the only way to watch it arrive is to speed time up 64×.
 
 import {
@@ -13,7 +13,7 @@ import { clamp, lerp, ramp, window_, easeZoom, easeOut, group, roundSig, stopwat
 import { EARTH, MOON, SUN, MOON_ORBIT, AU, C_LIGHT, LIGHT_TIMES, KM } from '../lib/data.js';
 
 export const id = 'light-speed';
-export const title = 'Скорость света';
+export const title = 'The Speed of Light';
 
 const BEAM_Y = 470;
 const X_SRC = 300;
@@ -49,33 +49,33 @@ export function draw(ctx, t) {
   sceneTag(ctx, { index: 3, title, alpha: window_(t, 0.3, duration - 0.2, 0.6) });
 
   caption(ctx, {
-    kicker: 'реальное время',
-    title: 'Свет до Луны',
-    body: `Этот отрезок — ${group(MOON_ORBIT.mean / KM)} км. Точка летит со скоростью ${group(C_LIGHT / KM)} км/с, видео не ускорено.`,
+    kicker: 'real time',
+    title: 'Light to the Moon',
+    body: `This span is ${group(MOON_ORBIT.mean / KM)} km. The dot travels at ${group(C_LIGHT / KM)} km/s, and the video is not sped up.`,
     alpha: window_(t, 0.4, 7.2, 0.45),
     accent: PALETTE.cool,
   });
 
   caption(ctx, {
-    kicker: 'тот же отрезок экрана',
-    title: 'Теперь это путь до Солнца',
-    body: `Расстояние выросло в ${(AU / MOON_ORBIT.mean).toFixed(0)} раз, скорость прежняя. Чтобы дождаться прилёта, время ускорено в ${TIME_X} раза.`,
+    kicker: 'the same strip of screen',
+    title: 'Now it is the trip to the Sun',
+    body: `The distance grew ${(AU / MOON_ORBIT.mean).toFixed(0)} times over; the speed did not. To watch it arrive at all, time runs ${TIME_X} times faster.`,
     alpha: window_(t, 7.6, T.ladder[0] - 0.8, 0.45),
     accent: PALETTE.cool,
   });
 
   caption(ctx, {
-    kicker: 'сводка',
-    title: 'Сколько лететь свету',
-    body: 'Каждая следующая строка — не «чуть дальше», а другой порядок величины. Шкала полосок логарифмическая, иначе первая строка была бы невидимой.',
+    kicker: 'summary',
+    title: 'How long light takes',
+    body: 'Each row is not a bit further than the last but another order of magnitude. The bars run on a log scale, or the first row would be invisible.',
     alpha: window_(t, T.ladder[0] + 0.3, T.close[0], 0.45),
     accent: PALETTE.cool,
   });
 
   caption(ctx, {
-    kicker: 'следствие',
-    title: 'Небо — это архив',
-    body: `Солнце, которое вы видите, всегда на ${humanSeconds(T_SUN)} в прошлом. Проксима — на ${humanSeconds(LIGHT_TIMES[3].s)}. Дальше — на миллиарды лет.`,
+    kicker: 'what follows',
+    title: 'The sky is an archive',
+    body: `The Sun you see is always ${humanSeconds(T_SUN)} in the past. Proxima is ${humanSeconds(LIGHT_TIMES[3].s)} behind. Further out, billions of years.`,
     alpha: window_(t, T.close[0] + 0.2, duration - 0.15, 0.45),
     accent: PALETTE.cool,
   });
@@ -87,8 +87,8 @@ export function draw(ctx, t) {
 
 function drawBeam(ctx, t, toSun, alpha) {
   const target = toSun > 0.5
-    ? { name: 'Солнце', color: SUN.color, color2: SUN.color2, r: 62 }
-    : { name: 'Луна', color: MOON.color, color2: MOON.color2, r: 34 };
+    ? { name: 'Sun', color: SUN.color, color2: SUN.color2, r: 62 }
+    : { name: 'Moon', color: MOON.color, color2: MOON.color2, r: 34 };
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -110,7 +110,7 @@ function drawBeam(ctx, t, toSun, alpha) {
   clock(ctx, t, leg, toSun);
 
   ctx.restore();
-  disclosure(ctx, { text: 'расстояние в масштабе · размеры тел — нет', alpha: alpha * 0.9, color: PALETTE.faint });
+  disclosure(ctx, { text: 'distance to scale · body sizes are not', alpha: alpha * 0.9, color: PALETTE.faint });
 }
 
 /** Where the photon is, if one is in flight. */
@@ -131,19 +131,19 @@ function legState(t) {
 function discs(ctx, target, toSun) {
   // Earth, always on the left.
   sphere(ctx, X_SRC, BEAM_Y, 46, EARTH.color, EARTH.color2);
-  label(ctx, X_SRC, BEAM_Y + 46 + 44, 'Земля');
+  label(ctx, X_SRC, BEAM_Y + 46 + 44, 'Earth');
 
   // Target morphs from Moon to Sun.
   const r = lerp(34, 62, toSun);
   sphere(ctx, X_DST, BEAM_Y, r, blend(MOON.color, SUN.color, toSun), blend(MOON.color2, SUN.color2, toSun));
-  label(ctx, X_DST, BEAM_Y + r + 44, toSun > 0.5 ? 'Солнце' : 'Луна');
+  label(ctx, X_DST, BEAM_Y + r + 44, toSun > 0.5 ? 'Sun' : 'Moon');
 
   // What the strip is worth right now.
   const dist = toSun > 0.5 ? AU : MOON_ORBIT.mean;
   ctx.font = mono(30, 600);
   ctx.fillStyle = PALETTE.accent;
   ctx.textAlign = 'center';
-  ctx.fillText(`${group(dist / KM)} км`, (X_SRC + X_DST) / 2, BEAM_Y - 40);
+  ctx.fillText(`${group(dist / KM)} km`, (X_SRC + X_DST) / 2, BEAM_Y - 40);
 }
 
 function sphere(ctx, x, y, r, color, color2) {
@@ -204,9 +204,9 @@ function clock(ctx, t, leg, toSun) {
 
   ctx.font = sans(24, 500);
   ctx.fillStyle = PALETTE.dim;
-  ctx.fillText('время полёта фотона — мм:сс,сс', W - MARGIN, MARGIN + 104);
+  ctx.fillText('photon flight time — mm:ss.cc', W - MARGIN, MARGIN + 104);
 
-  const badge = speed === 1 ? 'реальное время · ×1' : `время ускорено · ×${speed}`;
+  const badge = speed === 1 ? 'real time · ×1' : `time sped up · ×${speed}`;
   ctx.font = sans(24, 600);
   const bw = ctx.measureText(badge).width + 40;
   const bx = W - MARGIN - bw, by = MARGIN + 132;
@@ -265,7 +265,7 @@ function drawLadder(ctx, t, alpha) {
   ctx.textAlign = 'right';
   ctx.font = sans(20, 500);
   ctx.fillStyle = PALETTE.faint;
-  ctx.fillText('логарифмическая шкала', barX + barW, y + rows.length * rowH - 30);
+  ctx.fillText('logarithmic scale', barX + barW, y + rows.length * rowH - 30);
   ctx.restore();
 }
 

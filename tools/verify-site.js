@@ -24,9 +24,16 @@ const TYPES = {
   '.svg': 'image/svg+xml',
 };
 
+// Served under a subdirectory on purpose: GitHub Pages puts a project site at
+// /<repo>/, and an absolute path anywhere in the build would 404 there while
+// passing happily at the origin root.
+const BASE_PATH = '/a-sense-of-scale/';
+
 const server = http.createServer(async (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
+  if (!urlPath.startsWith(BASE_PATH)) { res.writeHead(404).end('outside the base path'); return; }
+  const stripped = urlPath.slice(BASE_PATH.length);
+  const rel = stripped === '' ? 'index.html' : stripped;
   const file = path.join(DIST, rel);
   if (!file.startsWith(DIST)) { res.writeHead(403).end(); return; }
   try {
@@ -39,7 +46,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 const url = await new Promise((r) => {
-  server.listen(0, '127.0.0.1', () => r(`http://127.0.0.1:${server.address().port}/`));
+  server.listen(0, '127.0.0.1', () => r(`http://127.0.0.1:${server.address().port}${BASE_PATH}`));
 });
 
 function chromiumExecutable() {
@@ -90,15 +97,17 @@ check('manifest has a maskable icon', maskable);
 check('manifest has a 192px PNG icon', png192);
 
 // --- icons really exist ---------------------------------------------------
-const iconUrls = [
-  ...manifest.body.icons.map((i) => i.src),
-  '/assets/apple-touch-icon.png',
-];
-const iconStatus = await page.evaluate(async (urls) => {
+// Resolve every icon the way the browser does — against the document — so the
+// check fails on an absolute path instead of quietly testing a different URL.
+const iconStatus = await page.evaluate(async (manifestIcons) => {
+  const hrefs = [
+    ...manifestIcons,
+    document.querySelector('link[rel="apple-touch-icon"]').getAttribute('href'),
+  ];
   const out = {};
-  for (const u of urls) out[u] = (await fetch(u)).status;
+  for (const h of hrefs) out[h] = (await fetch(new URL(h, location.href))).status;
   return out;
-}, iconUrls);
+}, manifest.body.icons.map((i) => i.src));
 for (const [u, status] of Object.entries(iconStatus)) check(`icon ${u}`, status === 200, `HTTP ${status}`);
 
 // --- iOS head tags --------------------------------------------------------

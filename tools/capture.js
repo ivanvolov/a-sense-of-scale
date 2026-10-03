@@ -114,7 +114,7 @@ async function main() {
 
   await browser.close();
   server.close();
-  console.log(`готово: ${outFile}`);
+  console.log(`done: ${outFile}`);
 }
 
 function ffmpegArgs(fps, outFile, opts) {
@@ -135,7 +135,7 @@ function ffmpegArgs(fps, outFile, opts) {
 function frameRange(film, opts) {
   if (opts.scene) {
     const s = film.manifest.find((m) => m.id === opts.scene);
-    if (!s) throw new Error(`нет сцены "${opts.scene}". Есть: ${film.manifest.map((m) => m.id).join(', ')}`);
+    if (!s) throw new Error(`no scene "${opts.scene}". Available: ${film.manifest.map((m) => m.id).join(', ')}`);
     return { from: Math.round(s.start * film.FPS), to: Math.round((s.start + s.duration) * film.FPS) };
   }
   const from = opts.from != null ? Math.round(opts.from * film.FPS) : 0;

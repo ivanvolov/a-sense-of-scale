@@ -1,4 +1,4 @@
-// Scene 02 — Солнце и астрономическая единица.
+// Scene 02 — The Sun and the astronomical unit.
 //
 // Two honest halves. First sizes only, with the distance deliberately faked and
 // labelled as such, because at true separation the Sun and the Earth cannot
@@ -13,7 +13,7 @@ import { clamp, lerp, logLerp, ramp, window_, easeZoom, group, humanSeconds } fr
 import { EARTH, SUN, AU, C_LIGHT, KM } from '../lib/data.js';
 
 export const id = 'sun-au';
-export const title = 'Солнце и 1 а. е.';
+export const title = 'The Sun and 1 AU';
 export const duration = 22.0;
 
 const SCALE_SUN = scaleFor(SUN.r, 420);          // Sun fills most of the height
@@ -65,20 +65,20 @@ export function draw(ctx, t) {
   const sizesAlpha = window_(t, 0.4, T.flyOut[0] + 0.5, 0.5);
   if (sizesAlpha > 0.01) {
     magnifier(ctx, { cx: earth.px, cy: earth.py, worldX: earthX, scale, alpha: sizesAlpha });
-    disclosure(ctx, { text: 'размеры в масштабе · расстояние — нет', alpha: sizesAlpha });
+    disclosure(ctx, { text: 'sizes to scale · distance is not', alpha: sizesAlpha });
   }
 
   // --- true distance ------------------------------------------------------
   const farAlpha = window_(t, T.flyOut[0] + 2.2, duration - 0.2, 0.5);
   if (earth.marked) {
-    tag(ctx, { tx: earth.px, ty: earth.py, dx: 0, dy: -110, text: 'Земля', alpha: farAlpha, color: EARTH.color2 });
-    tag(ctx, { tx: sun.px, ty: sun.py - sun.pr, dx: 0, dy: -90, text: 'Солнце', alpha: farAlpha, color: SUN.color2 });
+    tag(ctx, { tx: earth.px, ty: earth.py, dx: 0, dy: -110, text: 'Earth', alpha: farAlpha, color: EARTH.color2 });
+    tag(ctx, { tx: sun.px, ty: sun.py - sun.pr, dx: 0, dy: -90, text: 'Sun', alpha: farAlpha, color: SUN.color2 });
   }
 
   measure(ctx, {
     x0: sun.px, x1: earth.px, y: cam.sy(0) + 150,
-    label: `${group(AU / KM)} км`,
-    sub: `1 астрономическая единица — ${(AU / SUN.d).toFixed(0)} диаметров Солнца`,
+    label: `${group(AU / KM)} km`,
+    sub: `1 astronomical unit — ${(AU / SUN.d).toFixed(0)} solar diameters`,
     alpha: window_(t, T.ruler[0], T.model[0] + 0.2, 0.45),
     grow: ramp(t, T.ruler[0], T.ruler[0] + 1.4),
   });
@@ -87,25 +87,25 @@ export function draw(ctx, t) {
   sceneTag(ctx, { index: 2, title, alpha: window_(t, 0.3, duration - 0.2, 0.6) });
 
   caption(ctx, {
-    kicker: 'только размеры',
-    title: `Солнце — ${(SUN.d / EARTH.d).toFixed(0)} диаметров Земли`,
-    body: `По объёму внутрь влезло бы около ${group(Math.round(EARTHS_INSIDE / 1e5) * 1e5)} таких планет. Земля здесь — точка справа.`,
+    kicker: 'sizes only',
+    title: `The Sun is ${(SUN.d / EARTH.d).toFixed(0)} Earth diameters across`,
+    body: `About ${group(Math.round(EARTHS_INSIDE / 1e5) * 1e5)} Earths would fit inside it by volume. Earth is the dot on the right.`,
     alpha: window_(t, 0.5, 4.6),
     accent: SUN.color,
   });
 
   caption(ctx, {
-    kicker: 'а расстояние?',
-    title: 'Оно сюда не помещается',
-    body: `Чтобы показать настоящий зазор в этом же масштабе, кадр пришлось бы растянуть на ${group(HONEST_FRAME_PX)} пикселей. Проще отпустить Землю на её орбиту.`,
+    kicker: 'and the distance?',
+    title: 'It does not fit in the frame',
+    body: `Showing the real gap at this scale would take a frame ${group(HONEST_FRAME_PX)} pixels wide. Easier to let the Earth go back to its orbit.`,
     alpha: window_(t, 4.8, 9.2),
     accent: SUN.color,
   });
 
   caption(ctx, {
-    kicker: 'настоящее расстояние',
-    title: 'Оба стали точками',
-    body: `Солнце здесь — шарик в ${(SUN.r * scale * 2).toFixed(0)} пикселей, Земля меньше пикселя и отмечена маркером. Свет проходит этот путь за ${humanSeconds(AU / C_LIGHT)}.`,
+    kicker: 'the real distance',
+    title: 'Both are dots now',
+    body: `The Sun is a ${(SUN.r * scale * 2).toFixed(0)}-pixel ball here; the Earth is smaller than a pixel and gets a marker. Light crosses this in ${humanSeconds(AU / C_LIGHT)}.`,
     alpha: window_(t, T.ruler[0] + 0.2, T.model[0], 0.45),
   });
 
@@ -163,9 +163,9 @@ function magnifier(ctx, { cx, cy, worldX, scale, alpha }) {
 function modelCard(ctx, alpha) {
   if (alpha <= 0) return;
   const cols = [
-    { k: 'Солнце', v: `${(BALL_D * 100).toFixed(0)} см`, n: 'баскетбольный мяч' },
-    { k: 'Земля', v: `${(PEA_D * 1000).toFixed(1)} мм`, n: 'горошина' },
-    { k: 'между ними', v: `${MODEL_DIST.toFixed(0)} м`, n: 'четверть футбольного поля' },
+    { k: 'the Sun', v: `${(BALL_D * 100).toFixed(0)} cm`, n: 'a basketball' },
+    { k: 'the Earth', v: `${(PEA_D * 1000).toFixed(1)} mm`, n: 'a pea' },
+    { k: 'between them', v: `${MODEL_DIST.toFixed(0)} m`, n: 'a quarter of a football pitch' },
   ];
   const boxW = 1240, boxH = 240;
   const x = W / 2 - boxW / 2, y = H - MARGIN - boxH;
@@ -183,7 +183,7 @@ function modelCard(ctx, alpha) {
   ctx.font = sans(22, 600);
   ctx.fillStyle = PALETTE.accent;
   ctx.letterSpacing = '0.22em';
-  ctx.fillText('ЕСЛИ СЖАТЬ ДО НАСТОЛЬНОГО МАСШТАБА', x + 44, y + 52);
+  ctx.fillText('SHRUNK TO TABLETOP SIZE', x + 44, y + 52);
   ctx.letterSpacing = '0px';
 
   cols.forEach((c, i) => {

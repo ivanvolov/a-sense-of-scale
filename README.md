@@ -1,176 +1,80 @@
-# A Sense of Scale — интерактивный explorer + ролик
+# A Sense of Scale
 
-Два способа рассказать одно и то же: **сайт**, где расстояния щупаешь пальцами,
-и **ролик** на 87 секунд, который те же сцены проигрывает сам. Общая часть —
-файл с числами и одна идея про логарифмическую камеру. Никаких подписок:
-Canvas 2D в браузере, headless-Chromium и ffmpeg, всё локально.
+Cosmic distances you can handle with your fingers, plus a short film that plays
+the same scenes on its own. Both are plain Canvas 2D, both read their numbers
+from one file, and neither needs a paid service to build or host.
+
+**→ [ivanvolov.github.io/a-sense-of-scale](https://ivanvolov.github.io/a-sense-of-scale/)**
+
+Install it from the browser menu and it runs full screen and offline.
+
+## The explorer
+
+Two fingers to zoom, one to pan. On a desktop: scroll, drag, double-click to
+reset, `+` `−` `0` on the keyboard.
+
+| Mode | |
+|---|---|
+| **Earth & Moon** | Zoom out until the Moon shows up. One button lays the other seven planets into the gap — they overshoot by 3 724 km. |
+| **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. |
+| **Speed of Light** | A pulse leaving the Sun at the real speed of light, with a clock and a time multiplier. |
+| **Powers of Ten** | A ladder of concentric sizes from a proton to the observable universe. |
+
+The readout top right gives a scale bar and the time light needs to cross it.
+
+## Commands
 
 ```
 npm install
-npm run dev            # http://127.0.0.1:5178 — превью ролика
-                       # http://127.0.0.1:5178/explorer/index.html — explorer
-npm run build          # dist/ — сайт для деплоя (PWA: манифест, SW, иконки)
-npm run verify         # гоняет браузер по dist/: манифест, иконки, оффлайн, iOS
-npm run bundle         # out/explorer.html — одним файлом, без PWA-обвязки
-npm run render         # out/space-scale.mp4
-npm run shots          # out/shots/*.png — скриншоты explorer'а (--device ipad|phone)
-npm run icons          # перерисовать иконки и og-превью
+npm run dev       # film preview + explorer on 127.0.0.1:5178
+npm run build     # dist/ — the deployable site
+npm run verify    # drives a browser over dist/: manifest, icons, offline, iOS install
+npm run render    # out/space-scale.mp4 — the film, 1080p, ~4 min
+npm run shots     # screenshots (--device desktop|ipad|phone)
+npm run icons     # redraw icons and the social preview
 ```
 
-## Интерактивный explorer
+## How it holds 42 orders of magnitude
 
-Текста минимум, всё остальное — руками. `out/explorer.html` после `npm run bundle`
-кладётся на любой статический хостинг; это один файл без сборки на той стороне.
+The camera state is `logSpan`: the base-10 log of how many metres fit across the
+viewport. A pinch becomes an addition, a zoom tween interpolates one number, and
+nothing accumulates the multiplications that cost precision. A 3D engine cannot
+hold this range — float32 in a vertex buffer starts fighting well before 10¹² m.
 
-**Управление.** Два пальца — зум, один — панорама. На десктопе: колесо — зум,
-перетаскивание — панорама, двойной клик — сброс, `+` / `−` / `0` с клавиатуры.
-Внизу ползунок по декадам: им можно пролететь все 42 порядка за один жест.
+Anything under two pixels is drawn as a marker rather than inflated to a visible
+disc. Rounding it up would lie about the one thing the page exists to show.
 
-**Четыре режима.**
-
-| Режим | Что делаешь |
-|---|---|
-| **Earth & Moon** | Отъезжаешь, пока не появится Луна. Кнопка «Fill the gap with planets» выкладывает остальные семь планет в просвет — и при должном зуме видно чип «−3 724 km · they overshoot the Moon». |
-| **Solar System** | Орбиты всех восьми планет. Сколько ни приближай планету, она остаётся точкой: так и есть. |
-| **Speed of Light** | Импульс от Солнца, расходящийся с настоящей скоростью света. Переключатель ×1/×60/×600/×3600 и часы: до Земли 8 мин 19 с, до Нептуна 4 часа. |
-| **Powers of Ten** | Концентрическая лестница от протона (10⁻¹⁵ м) до горизонта Вселенной (10²⁷ м). |
-
-Правый верхний угол — масштабная линейка: круглая длина в разумных единицах
-(«500 pm», «5 AU», «50 billion ly») и время, за которое свет её пересекает.
-Это связывает масштаб со временем в одну строку.
-
-**Честность вместо красоты.** Тело меньше двух пикселей не дорисовывается до
-видимого размера, а помечается точкой в кольце. Иначе картинка врала бы ровно о
-том, ради чего сделана.
-
-## Установка на домашний экран
-
-`npm run build` собирает `dist/` — это и есть то, что деплоится. К странице
-добавляются манифест, service worker и иконки, после чего сайт ставится на
-домашний экран и открывается без браузерной обвязки.
-
-- **Манифест**: `display: standalone`, тема под цвет фона, maskable-иконка для
-  адаптивных иконок Android и `shortcuts` — долгое нажатие по иконке открывает
-  сразу нужный режим (приложение и так стартует с `location.hash`).
-- **iOS**: Safari манифест игнорирует, поэтому отдельно идут `apple-touch-icon`
-  и `apple-mobile-web-app-*`. Системного промпта установки там нет вообще, так
-  что кнопка «Add to Home Screen» на iOS открывает карточку с инструкцией про
-  меню Share. В Chrome и Edge та же кнопка дёргает настоящий установщик через
-  `beforeinstallprompt`.
-- **Кнопка не показывается** внутри iframe (установилась бы родительская
-  страница, а не эта) и когда приложение уже запущено standalone.
-- **Service worker**: оболочка в прекэш, шрифты stale-while-revalidate, страница
-  network-first с офлайн-фолбэком. Имя кэша — хэш самой страницы, иначе
-  установленная копия навсегда залипла бы на той сборке, которую увидела первой.
-- **Иконки** рисуются тем же канвасом, что и сайт (`tools/icons.js`). Крупные
-  размеры — SVG: три вектора весят 568 байт там, где то же самое в PNG 512
-  занимало 290 КБ. PNG остался только там, где он обязателен: `apple-touch-icon`
-  для iOS и maskable для Android.
-
-`npm run verify` поднимает `dist/` на 127.0.0.1 (secure context, SW разрешён) и
-проверяет браузером то, что важно: манифест парсится, все иконки отдаются,
-воркер активируется, приложение поднимается с отключённой сетью, кнопка на iOS
-открывает инструкцию. Он сразу окупился: `display: grid` на карточке iOS
-перебивал `[hidden]`, и невидимый оверлей на весь экран съедал все касания.
-
-## Деплой
-
-Vercel собирает сайт сам — сборке не нужен ни один npm-пакет, только Node:
-
-| настройка | значение |
-|---|---|
-| Root Directory | `.` (корень репозитория) |
-| Install Command | `echo "no runtime dependencies"` |
-| Build Command | `node tools/site.js` |
-| Output Directory | `dist` |
-| Framework | None |
-
-Альтернатива без Git: `npm run build` и перетащить папку `dist/` на
-vercel.com/new. `dist/vercel.json` уже задаёт заголовки кэширования — страница
-и воркер не кэшируются, иначе установленная копия не получила бы обновление.
-
-## Почему логарифмическая камера, а не 3D-движок
-
-Диапазон от 10⁻¹⁵ до 10²⁷ м — 42 порядка. Float32 в вершинном буфере начинает
-дрожать и давать z-fighting задолго до 10¹², поэтому настоящий 3D здесь ломается.
-Вместо этого состояние камеры — **`logSpan`, десятичный логарифм числа метров,
-укладывающихся в ширину экрана**. Из этого следует всё остальное:
-
-- пинч — это сложение: `logSpan += log10(prevDist / curDist)`;
-- ползунок линеен по декадам сам собой;
-- плавный перелёт между зумами — линейная интерполяция одного числа;
-- нигде нет накопления умножений, которое подвело бы точность.
-
-Ролик использует ту же идею (`logLerp` в `src/lib/math.js`), только гонит время
-по заранее написанной партитуре вместо пальцев.
-
-## Ролик
-
-1920×1080, 30 fps, 87 с, подписи по-русски. Рендер идёт покадрово: страница
-экспортирует `renderFrame(ctx, t)` без единого обращения к часам, Playwright
-дёргает кадры, PNG уходят **прямо в stdin ffmpeg** — на диск ничего не пишется,
-весь проход стоит ровно размер готового mp4 (~11 МБ, около 4 минут).
-
-```bash
-node tools/capture.js                     # весь ролик
-node tools/capture.js --scene earth-moon  # одна сцена
-node tools/capture.js --from 12 --to 20   # кусок по секундам
-node tools/capture.js --stills 4.5,26,63  # кадры в указанные секунды
-node tools/capture.js --jpeg --crf 24 --preset veryfast --scale 960
-```
-
-Сцены: `earth-moon` (отъезд + семь планет в просвет + апогей), `sun-au`
-(размеры, потом настоящее расстояние), `light-speed` (один и тот же отрезок
-экрана сначала как 384 400 км в реальном времени, потом как 1 а. е.).
-
-## Устройство
+## Layout
 
 ```
 src/
-  lib/data.js        ВСЕ числа обоих проектов (СИ, с источником)
-  lib/math.js        easing, логарифмическая интерполяция, форматирование
-  lib/draw.js        примитивы ролика (жёстко 1920×1080)
-  film.js            список сцен + renderFrame(ctx, t)
-  index.html         превью-плеер ролика
-  scenes/            earth-moon · sun-au · light-speed · cards
-  explorer/
-    index.html       разметка и стили сайта (без <html>/<head> — так же
-                     собирается в один файл и публикуется как артефакт)
-    app.js           камера, жесты, отрисовка, HUD
-    worlds.js        четыре режима: данные + одна draw(g) на каждый
-    units.js         форматирование на 42 порядка
+  lib/data.js       every number, SI units, with its source
+  lib/math.js       easing, log interpolation, formatting
+  lib/draw.js       film primitives (fixed 1920×1080)
+  film.js           scene list + renderFrame(ctx, t)
+  scenes/           earth-moon · sun-au · light-speed · cards
+  explorer/         app.js (camera, gestures, HUD) · worlds.js · units.js
 tools/
-  serve.js           статика (ES-модули не грузятся с file://)
-  capture.js         Chromium → PNG → пайп в ffmpeg → mp4
-  bundle.js          инлайнит модули в один HTML
-  shots.js           скриншоты explorer'а на desktop / ipad / phone
+  serve.js  capture.js  bundle.js  site.js  icons.js  shots.js  verify-site.js
 ```
 
-**Числа живут только в `lib/data.js`.** И геометрия, и подпись к ней берутся
-оттуда, поэтому разойтись они не могут: поправишь радиус Луны — поедут и шар, и
-«384 400 км», и «30,2 диаметра».
+`lib/data.js` feeds both the geometry and the captions describing it, so the two
+cannot drift apart. `renderFrame(ctx, t)` is pure — no clock, no unseeded random
+— which lets the headless renderer walk the timeline faster than real time and
+still match the preview.
 
-`tools/bundle.js` склеивает модули в один файл и **падает с ошибкой при
-совпадении имён на верхнем уровне** — иначе в общей области видимости одно
-объявление молча перекрыло бы другое.
+Every path in the build is relative: GitHub Pages serves a project site from a
+subdirectory, where absolute paths resolve one level too high. `npm run verify`
+serves `dist/` under a subpath for that reason.
 
-## Если добавлять своё
+## Deploying
 
-**Режим в explorer** — объект в `src/explorer/worlds.js` с `id`, `title`, `hint`,
-`span: [минМетров, максМетров]`, `home` и `draw(g)`. В `g` приходят камера
-(`sx`, `sy`, `scale`) и примитивы (`body`, `ring`, `chip`, `after`); DOM и ввод
-режиму недоступны.
+Pushing to `main` builds and publishes through `.github/workflows/pages.yml`.
+The build needs no npm packages. To host it elsewhere, `npm run build` and
+upload `dist/`.
 
-**Сцена в ролик** — файл в `src/scenes/` с `duration` и `draw(ctx, t)`, где `t` —
-локальное время сцены, плюс строка в `film.js`. Стыки затемняются сами. Никакого
-`Date.now()` и `Math.random()` без сида: кадр обязан быть функцией только от `t`.
+## Sources
 
-Идеи дальше: размер атома (ядро как шарик в центре стадиона), миллион против
-миллиарда секунд (11,6 суток против 31,7 года), история Земли в одних сутках.
-
-## Источники чисел
-
-NASA/JPL Planetary Fact Sheets (радиусы, орбиты), IAU 2012
-(а. е. = 149 597 870 700 м), CODATA (c = 299 792 458 м/с — точно, по определению).
-Шрифты: Inter и JetBrains Mono, SIL OFL 1.1 — в ролике локально из
-`@fontsource/*`, в explorer'е с Google Fonts.
+NASA/JPL Planetary Fact Sheets (radii, orbits), IAU 2012 (1 AU =
+149 597 870 700 m), CODATA (c = 299 792 458 m/s, exact by definition).
+Inter and JetBrains Mono, SIL OFL 1.1.

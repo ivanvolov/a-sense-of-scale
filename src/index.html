@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Чувство масштаба — превью</title>
+<title>A Sense of Scale — film preview</title>
 <style>
   /* Fonts are vendored from node_modules by tools/serve.js so the render is
      byte-identical on any machine that ran `npm install`. */
@@ -71,7 +71,7 @@
 <body>
   <div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
   <div id="bar">
-    <button id="play">▶ Играть</button>
+    <button id="play">▶ Play</button>
     <input id="seek" type="range" min="0" max="1000" value="0" step="1">
     <span id="time">00.00 / 00.00</span>
     <span id="scene"></span>
@@ -109,7 +109,7 @@ function loop(now) {
 
 function setPlaying(v) {
   playing = v;
-  document.getElementById('play').textContent = v ? '❚❚ Пауза' : '▶ Играть';
+  document.getElementById('play').textContent = v ? '❚❚ Pause' : '▶ Play';
   if (v) {
     if (frame >= TOTAL_FRAMES - 1) frame = 0;
     rafFrame0 = frame;
@@ -132,8 +132,8 @@ addEventListener('keydown', (e) => {
 // The contract the headless renderer drives.
 window.film = {
   WIDTH, HEIGHT, FPS, DURATION, TOTAL_FRAMES, manifest,
-  ready: document.fonts.ready.then(() => document.fonts.load('700 64px Inter', 'Земля'))
-    .then(() => document.fonts.load('600 64px "JetBrains Mono"', '0123456789 км'))
+  ready: document.fonts.ready.then(() => document.fonts.load('700 64px Inter', 'Earth'))
+    .then(() => document.fonts.load('600 64px "JetBrains Mono"', '0123456789 km'))
     .then(() => { paint(0); return true; }),
   seek(n) { paint(n); },
   snapshot(type = 'image/png', quality) { return canvas.toDataURL(type, quality); },

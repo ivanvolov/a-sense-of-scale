@@ -32,7 +32,7 @@ const earthMoon = {
 
     if (g.state.planets) {
       for (const p of GAP_ROW) {
-        g.body({ x: p.x, y: 0, r: p.r, color: p.color, color2: p.color2, name: p.en });
+        g.body({ x: p.x, y: 0, r: p.r, color: p.color, color2: p.color2, name: p.name });
       }
     }
 
@@ -64,12 +64,12 @@ function drawSolar(g) {
     g.body({
       x: Math.cos(p.angle) * p.a,
       y: Math.sin(p.angle) * p.a,
-      r: p.r, color: p.color, color2: p.color2, name: p.en,
+      r: p.r, color: p.color, color2: p.color2, name: p.name,
     });
   }
 }
 
-const solarTargets = () => PLANETS.map((p) => ({ name: p.en, d: p.a }));
+const solarTargets = () => PLANETS.map((p) => ({ name: p.name, d: p.a }));
 
 const solarSystem = {
   id: 'solar-system',
@@ -110,7 +110,7 @@ const powersOfTen = {
 
   draw(g) {
     for (const item of LADDER) {
-      g.ring({ r: item.r, color: item.color, alpha: 0.85, label: item.en, note: item.note, bold: true });
+      g.ring({ r: item.r, color: item.color, alpha: 0.85, label: item.name, note: item.note, bold: true });
     }
   },
 };

@@ -1,4 +1,4 @@
-// Scene 01 — Земля и Луна.
+// Scene 01 — Earth and Moon.
 //
 // One continuous pull-back: ground level -> whole Earth -> the whole Earth-Moon
 // system. Then the payoff: the other seven planets are laid end to end in the
@@ -15,7 +15,7 @@ import {
 import { EARTH, MOON, MOON_ORBIT, OTHER_PLANETS, PLANETS_TOTAL_D, gap, KM } from '../lib/data.js';
 
 export const id = 'earth-moon';
-export const title = 'Земля и Луна';
+export const title = 'Earth and Moon';
 export const duration = 28.0;
 
 // --- camera keyframes -------------------------------------------------------
@@ -91,8 +91,8 @@ export function draw(ctx, t) {
 
   measure(ctx, {
     x0: earth.px, x1: moon.px, y: axisY,
-    label: `${group(MOON_ORBIT.mean / KM)} км`,
-    sub: `${dec(MOON_ORBIT.mean / EARTH.d)} диаметра Земли — от центра до центра`,
+    label: `${group(MOON_ORBIT.mean / KM)} km`,
+    sub: `${dec(MOON_ORBIT.mean / EARTH.d)} Earth diameters, centre to centre`,
     alpha: window_(t, T.ruler[0], T.planets[0] + 0.6, 0.45),
     grow: ramp(t, T.ruler[0], T.ruler[0] + 1.1),
   });
@@ -103,30 +103,30 @@ export function draw(ctx, t) {
   sceneTag(ctx, { index: 1, title, alpha: window_(t, 0.3, duration - 0.2, 0.6) });
 
   caption(ctx, {
-    kicker: 'уровень земли',
-    title: 'Всё выглядит плоским',
-    body: `В кадре примерно ${group(Math.round(W / SCALE_GROUND / 1000))} км поверхности. Отсюда кривизны не видно.`,
+    kicker: 'ground level',
+    title: 'Everything looks flat',
+    body: `The frame covers about ${group(Math.round(W / SCALE_GROUND / 1000))} km of surface. No curvature from down here.`,
     alpha: window_(t, 0.4, 4.6),
   });
 
   caption(ctx, {
-    kicker: 'планета целиком',
-    title: 'Земля',
-    body: `Диаметр ${group(EARTH.d / KM)} км. Кругосветка — 40 000 км, самолётом чуть больше двух суток.`,
+    kicker: 'the whole planet',
+    title: 'Earth',
+    body: `Diameter ${group(EARTH.d / KM)} km. All the way around is 40 000 km — a little over two days by plane.`,
     alpha: window_(t, 4.8, 9.4),
   });
 
   caption(ctx, {
-    kicker: 'а теперь — Луна',
-    title: 'Почти пустой кадр',
-    body: 'Между ними ничего. Обычно эту пару рисуют рядом — так почти никогда не рисуют.',
+    kicker: 'and now the Moon',
+    title: 'An almost empty frame',
+    body: 'Nothing in between. This pair is usually drawn side by side, and almost never like this.',
     alpha: window_(t, 9.6, 13.4),
   });
 
   caption(ctx, {
-    kicker: 'просвет',
-    title: 'Что туда влезет?',
-    body: `Между поверхностями ${group(gap(MOON_ORBIT.mean) / KM)} км. Попробуем выложить туда остальные семь планет.`,
+    kicker: 'the clearance',
+    title: 'What would fit in there?',
+    body: `${group(gap(MOON_ORBIT.mean) / KM)} km between the surfaces. Let us lay the other seven planets into it.`,
     alpha: window_(t, 13.6, 17.0),
   });
 
@@ -137,8 +137,8 @@ export function draw(ctx, t) {
     SLOTS.forEach((p, i) => { landed += p.d * clamp(planetEntry(t, i)); });
     readout(ctx, {
       value: group(landed / KM),
-      unit: 'км',
-      note: 'суммарный диаметр выложенных планет',
+      unit: 'km',
+      note: 'combined diameter of the planets placed so far',
       alpha: totalAlpha,
     });
   }
@@ -163,10 +163,10 @@ function drawPlanets(ctx, cam, t) {
       lightFrom: -1, alpha: clamp(u * 1.4),
     });
     // Only the two biggest get a name — seven labels at this size is noise.
-    if ((p.name === 'Юпитер' || p.name === 'Нептун') && shown.pr > 4) {
+    if ((p.name === 'Jupiter' || p.name === 'Neptune') && shown.pr > 4) {
       // Neptune's label leans left so it does not run into the verdict chip.
       tag(ctx, {
-        tx: shown.px, ty: shown.py - shown.pr, dx: p.name === 'Нептун' ? -70 : 0, dy: -70, text: p.name,
+        tx: shown.px, ty: shown.py - shown.pr, dx: p.name === 'Neptune' ? -70 : 0, dy: -70, text: p.name,
         alpha: clamp(u) * window_(t, T.planets[0] + 1.2, duration - 0.4, 0.6),
         color: p.color2,
       });
@@ -231,8 +231,8 @@ function drawGapVerdict(ctx, cam, t, dMoon, axisY) {
 
   // The verdict chip, parked above the band.
   const mid = (x0 + x1) / 2;
-  const text = `${overshooting ? '−' : '+'}${group(Math.abs(slack) / KM)} км`;
-  const sub = overshooting ? 'не хватает' : 'запас';
+  const text = `${overshooting ? '−' : '+'}${group(Math.abs(slack) / KM)} km`;
+  const sub = overshooting ? 'short' : 'to spare';
   ctx.font = mono(40, 600);
   const boxW = Math.max(ctx.measureText(text).width, 160) + 52;
   const bx = clamp(mid - boxW / 2, 40, W - boxW - 40);
@@ -253,17 +253,17 @@ function drawGapVerdict(ctx, cam, t, dMoon, axisY) {
   ctx.restore();
 
   caption(ctx, {
-    kicker: 'почти',
-    title: `${group(PLANETS_TOTAL_D / KM)} км против ${group(gap(MOON_ORBIT.mean) / KM)} км`,
-    body: 'Семь планет чуть длиннее просвета: Нептун упирается в Луну. Знаменитый факт «все планеты влезают между Землёй и Луной» — на среднем расстоянии неверен.',
+    kicker: 'almost',
+    title: `${group(PLANETS_TOTAL_D / KM)} km against ${group(gap(MOON_ORBIT.mean) / KM)} km`,
+    body: 'The row of seven is slightly longer than the gap, and Neptune runs into the Moon. The familiar claim that every planet fits between the Earth and the Moon is wrong at the mean distance.',
     alpha: window_(t, T.overshoot[0] + 0.3, T.apogee[0] + 0.2, 0.45),
     accent: PALETTE.warn,
   });
 
   caption(ctx, {
-    kicker: 'но орбита — эллипс',
-    title: `В апогее ${group(MOON_ORBIT.apogee / KM)} км`,
-    body: `Луна уходит дальше на ${group((MOON_ORBIT.apogee - MOON_ORBIT.mean) / KM)} км — и теперь все семь входят с запасом в ${group(gap(MOON_ORBIT.apogee) / KM - PLANETS_TOTAL_D / KM)} км.`,
+    kicker: 'but the orbit is an ellipse',
+    title: `At apogee: ${group(MOON_ORBIT.apogee / KM)} km`,
+    body: `The Moon swings ${group((MOON_ORBIT.apogee - MOON_ORBIT.mean) / KM)} km further out, and now all seven fit with ${group(gap(MOON_ORBIT.apogee) / KM - PLANETS_TOTAL_D / KM)} km to spare.`,
     alpha: window_(t, T.apogee[0] + 0.4, duration - 0.15, 0.45),
   });
 }

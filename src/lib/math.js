@@ -44,23 +44,23 @@ export function group(n, digits = 0) {
   const [int, frac] = fixed.split('.');
   const spaced = int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const sign = n < 0 ? '-' : '';
-  return sign + (frac ? `${spaced},${frac}` : spaced);
+  return sign + (frac ? `${spaced}.${frac}` : spaced);
 }
 
-/** Seconds -> "8 мин 20 с" / "1,28 с" / "4 ч 10 мин". */
+/** Seconds -> "8 min 20 s" / "1.28 s" / "4 h 10 min". */
 export function humanSeconds(s) {
-  if (s < 60) return `${group(s, 2)} с`;
-  if (s < 3600) return `${Math.floor(s / 60)} мин ${group(Math.round(s % 60))} с`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин`;
-  return `${group(s / 31557600, 2)} года`;
+  if (s < 60) return `${group(s, 2)} s`;
+  if (s < 3600) return `${Math.floor(s / 60)} min ${group(Math.round(s % 60))} s`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`;
+  return `${group(s / 31557600, 2)} years`;
 }
 
-/** mm:ss,cc stopwatch face. */
+/** mm:ss.cc stopwatch face. */
 export function stopwatch(s) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   const cs = Math.floor((s * 100) % 100);
-  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(cs).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
 }
 
 /** Round to `digits` significant figures — nobody needs ×104 513 507. */
@@ -70,5 +70,5 @@ export function roundSig(n, digits = 3) {
   return Math.round(n * mag) / mag;
 }
 
-/** 30.17 -> "30,2" — decimal comma, as Russian typography expects. */
-export const dec = (n, digits = 1) => n.toFixed(digits).replace('.', ',');
+/** 30.17 -> "30.2". */
+export const dec = (n, digits = 1) => n.toFixed(digits);

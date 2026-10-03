@@ -105,7 +105,7 @@ export function fade(ctx, alpha) {
  *
  * When the body is smaller than a couple of pixels we stop pretending and draw
  * an honest marker instead — a dot plus a ring — and report it back so the
- * scene can caption it ("отмечена точкой"). Silently rounding a sub-pixel
+ * scene can caption it ("shown as a marker"). Silently rounding a sub-pixel
  * planet up to 4px would be a lie about scale, which is the one thing this film
  * cannot afford.
  */
