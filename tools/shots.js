@@ -27,7 +27,6 @@ const SHOTS = [
   ['earth-moon', 6.0e8, [1.92e8, 0], 'gap-planets', { planets: true }],
   ['solar-system', null, null, 'home'],
   ['solar-system', 4.0e11, [0, 0], 'inner'],
-  ['light-speed', null, null, 'pulse'],
   ['powers-of-ten', 4e-9, [0, 0], 'atom'],
   ['powers-of-ten', 3e7, [0, 0], 'earth'],
   ['powers-of-ten', 2e22, [0, 0], 'galaxy'],
@@ -74,7 +73,7 @@ for (const [worldId, span, center, tag, state] of SHOTS) {
     document.getElementById('firstRun').style.display = 'none';
   }, [worldId, span, center, state]);
   // Let the pulse travel a little before we photograph it.
-  await page.waitForTimeout(worldId === 'light-speed' ? 1400 : 260);
+  await page.waitForTimeout(260);
   const file = path.join(OUT, `${deviceName}-${worldId}-${tag}.png`);
   await page.screenshot({ path: file });
   console.log(`  ${file}`);

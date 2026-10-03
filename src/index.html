@@ -97,16 +97,29 @@ body {
 
 /* ------------------------------------------------------------ top right --- */
 
-#hud {
+#topRight {
   text-align: right;
   flex: none;
+  max-width: min(46%, 420px);
+}
+/* The one readout that belongs on every mode, parked where nothing else is
+   and where a thumb dragging the canvas will not cover it. It never takes
+   pointer events, so a drag that starts here still pans. */
+#scale {
+  position: fixed;
+  z-index: 2;
+  pointer-events: none;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  /* No panel behind it: a shadow keeps it legible even over a lit sphere. */
+  text-shadow: 0 1px 12px rgba(4, 6, 13, .95), 0 0 3px rgba(4, 6, 13, .9);
 }
 #scalebar {
   height: 10px;
   border: 1px solid var(--accent);
   border-top: none;
-  margin-left: auto;
   transition: width .12s linear;
+  filter: drop-shadow(0 1px 6px rgba(4, 6, 13, .95));
 }
 #scaleValue {
   margin-top: 7px;
@@ -209,7 +222,19 @@ button.chip[aria-pressed="true"] {
 button.chip.tool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
 button.chip.install { color: var(--accent); border-color: rgba(255, 207, 92, .45); }
 button.chip.install:hover { color: #0b1120; background: var(--accent); }
-.sep { flex: none; width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+/* Buttons that do something live in the opposite corner from the buttons that
+   switch modes. Sharing one row made them read as more tabs. */
+#actions {
+  position: fixed;
+  z-index: 2;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  max-width: min(58vw, 720px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 /* ----------------------------------------------------- add-to-home sheet --- */
 
@@ -277,9 +302,11 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
 
 @media (max-width: 620px) {
   #worldHint { display: none; }
-  #hud { top: max(14px, env(safe-area-inset-top)); }
   #scaleValue { font-size: 16px; }
   #clockTime { font-size: 21px; }
+  /* Both corners are at the bottom; on a narrow screen the buttons wrap far
+     enough left to sit on top of the scale, so lift them clear of it. */
+  #actions { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px); }
 }
 </style>
 
@@ -288,24 +315,16 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
 <div id="chrome">
   <div id="controls">
     <span id="tabs" style="display:contents"></span>
-    <span class="sep"></span>
-    <span id="tools" style="display:contents"></span>
-    <button class="chip" id="reset">Reset view</button>
-    <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
   </div>
 
   <div id="meta">
     <div id="topLeft">
       <div id="brand">A Sense of Scale</div>
       <div id="worldTitle">Earth &amp; Moon</div>
-      <div id="worldHint"></div>
     </div>
 
-    <div id="hud">
-      <div id="scalebar" style="width:180px"></div>
-      <div id="scaleValue">—</div>
-      <div id="scaleLight">light crosses this in <b>—</b></div>
-
+    <div id="topRight">
+      <div id="worldHint"></div>
       <div id="clock">
         <div id="clockTime">0.00 s</div>
         <div id="clockLabel">since the pulse left</div>
@@ -313,6 +332,18 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
       </div>
     </div>
   </div>
+</div>
+
+<div id="scale">
+  <div id="scalebar" style="width:180px"></div>
+  <div id="scaleValue">—</div>
+  <div id="scaleLight">light crosses this in <b>—</b></div>
+</div>
+
+<div id="actions">
+  <span id="tools" style="display:contents"></span>
+  <button class="chip" id="reset">Reset view</button>
+  <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
 </div>
 
 <div id="iosSheet" hidden>

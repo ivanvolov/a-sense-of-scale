@@ -24,6 +24,7 @@ const earthMoon = {
   span: [3e4, 8e9],
   home: { cx: MOON_ORBIT.mean / 2, cy: 0, logSpan: Math.log10(5.6e8) },
   tools: ['planets', 'light'],
+  // No timeScales: the trip takes 1.28 s, so it is always watched in real time.
   lightOrigin: { x: 0, y: 0 },
   lightTargets: () => [{ name: 'Moon', d: MOON_ORBIT.mean }],
 
@@ -74,23 +75,11 @@ const solarTargets = () => PLANETS.map((p) => ({ name: p.name, d: p.a }));
 const solarSystem = {
   id: 'solar-system',
   title: 'Solar System',
-  hint: 'Everything you can see here is mostly empty. Pinch in on a planet — it never gets big.',
+  hint: 'Mostly empty: pinch in on a planet and it never gets big. Send a pulse of light and watch how long it takes to cross.',
   span: [1e7, 3e13],
   home: { cx: 0, cy: 0, logSpan: Math.log10(1.25e13) },
   tools: ['light'],
-  lightOrigin: { x: 0, y: 0 },
-  lightTargets: solarTargets,
-  draw: drawSolar,
-};
-
-const lightSpeed = {
-  id: 'light-speed',
-  title: 'Speed of Light',
-  hint: 'Send a pulse from the Sun and wait. Nothing in physics moves faster than this.',
-  span: [1e7, 3e13],
-  home: { cx: 5.6e10, cy: -3.0e10, logSpan: Math.log10(6.2e11) },
-  tools: ['light'],
-  autoLight: true,
+  timeScales: [1, 60, 600, 3600],
   lightOrigin: { x: 0, y: 0 },
   lightTargets: solarTargets,
   draw: drawSolar,
@@ -161,5 +150,10 @@ function midChip(g, x0, x1, text, opts = {}) {
   g.chip({ x: mid, y: g.sy(0) - (opts.y ?? 26), text, color: opts.color });
 }
 
-export const WORLDS = [earthMoon, solarSystem, lightSpeed, powersOfTen];
-export const worldById = (id) => WORLDS.find((wd) => wd.id === id) ?? WORLDS[0];
+export const WORLDS = [earthMoon, solarSystem, powersOfTen];
+
+// 'light-speed' was its own mode until it turned out to be this one with a
+// closer opening shot; the alias keeps old links and installed shortcuts alive.
+const ALIASES = { 'light-speed': 'solar-system' };
+
+export const worldById = (id) => WORLDS.find((wd) => wd.id === (ALIASES[id] ?? id)) ?? WORLDS[0];

@@ -50,7 +50,6 @@ const MANIFEST = {
   shortcuts: [
     { name: 'Earth & Moon', url: './#earth-moon' },
     { name: 'Solar System', url: './#solar-system' },
-    { name: 'Speed of Light', url: './#light-speed' },
     { name: 'Powers of Ten', url: './#powers-of-ten' },
   ],
 };

@@ -472,17 +472,19 @@ function buildTools() {
     b.onclick = () => { startPulse(); };
     box.appendChild(b);
 
-    const sp = document.createElement('button');
-    sp.className = 'chip';
-    const SPEEDS = world.id === 'earth-moon' ? [1, 10, 60] : [1, 60, 600, 3600];
-    const render = () => { sp.textContent = pulse.speed === 1 ? 'Time ×1 (real)' : `Time ×${pulse.speed}`; };
-    sp.onclick = () => {
-      pulse.speed = SPEEDS[(SPEEDS.indexOf(pulse.speed) + 1) % SPEEDS.length];
+    const speeds = world.timeScales;
+    if (speeds) {
+      const sp = document.createElement('button');
+      sp.className = 'chip';
+      const render = () => { sp.textContent = pulse.speed === 1 ? 'Time ×1 (real)' : `Time ×${pulse.speed}`; };
+      sp.onclick = () => {
+        pulse.speed = speeds[(speeds.indexOf(pulse.speed) + 1) % speeds.length];
+        render();
+      };
+      if (!speeds.includes(pulse.speed)) pulse.speed = speeds[0];
       render();
-    };
-    if (!SPEEDS.includes(pulse.speed)) pulse.speed = SPEEDS[0];
-    render();
-    box.appendChild(sp);
+      box.appendChild(sp);
+    }
   }
 }
 
@@ -509,7 +511,7 @@ function selectWorld(id) {
   pulse.sim = 0;
   pulse.arrivals = [];
   pulse.next = 0;
-  pulse.speed = world.id === 'earth-moon' ? 1 : 60;
+  pulse.speed = world.timeScales ? world.timeScales[1] : 1;
 
   el('worldTitle').textContent = world.title;
   el('worldHint').textContent = world.hint;

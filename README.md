@@ -15,8 +15,7 @@ reset, `+` `−` `0` on the keyboard.
 | Mode | |
 |---|---|
 | **Earth & Moon** | Zoom out until the Moon shows up. One button lays the other seven planets into the gap — they overshoot by 3 724 km. |
-| **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. |
-| **Speed of Light** | A pulse leaving the Sun at the real speed of light, with a clock and a time multiplier. |
+| **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. Send a pulse of light from the Sun and watch it reach each one, with a clock and a time multiplier. |
 | **Powers of Ten** | Concentric sizes from a proton to the observable universe. |
 
 The readout top right gives a scale bar and the time light needs to cross it.
@@ -49,7 +48,7 @@ disc. Rounding it up would lie about the one thing the page exists to show.
 src/
   index.html   markup and styles
   app.js       camera, gestures, drawing, HUD
-  worlds.js    the four modes: data plus one draw(g) each
+  worlds.js    the three modes: data plus one draw(g) each
   units.js     formatting across 42 decades
   data.js      every number, SI units, with its source
   assets/      icons and the social preview
