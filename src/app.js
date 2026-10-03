@@ -357,8 +357,7 @@ function tickPulse(dt) {
   const targets = world.lightTargets();
   while (pulse.next < targets.length && radius >= targets[pulse.next].d) {
     const t = targets[pulse.next];
-    pulse.arrivals.unshift({ name: t.name, at: t.d / C_LIGHT });
-    pulse.arrivals.length = Math.min(pulse.arrivals.length, 3);
+    pulse.arrivals.push({ name: t.name, at: t.d / C_LIGHT });
     pulse.next++;
   }
 
@@ -412,6 +411,7 @@ function updateHud() {
       : `time ×${pulse.speed} · light has travelled ${lengthStr(C_LIGHT * pulse.sim)}`;
     el('clockArrivals').innerHTML = pulse.arrivals
       .map((a) => `reached <b>${a.name}</b> at ${duration(a.at)}`).join('<br>');
+    labelLightButton();
   }
 }
 
@@ -468,7 +468,7 @@ function buildTools() {
   if (world.tools.includes('light')) {
     const b = document.createElement('button');
     b.className = 'chip tool';
-    b.textContent = 'Send a light pulse';
+    lightButton = b;
     b.onclick = () => { startPulse(); };
     box.appendChild(b);
 
@@ -486,11 +486,19 @@ function buildTools() {
   }
 }
 
+let lightButton = null;
+
+/** Label the one light control for what it will do next. */
+function labelLightButton() {
+  if (lightButton) lightButton.textContent = pulse.sim > 0 ? '↻ Replay pulse' : 'Send a light pulse';
+}
+
 function startPulse() {
   pulse.on = true;
   pulse.sim = 0;
   pulse.arrivals = [];
   pulse.next = 0;
+  labelLightButton();
   dismissHint();
 }
 
@@ -507,6 +515,7 @@ function selectWorld(id) {
   el('worldHint').textContent = world.hint;
   buildTabs();
   buildTools();
+  labelLightButton();
   goHome(false);
   if (world.autoLight) startPulse();
   try { location.hash = world.id; } catch { /* sandboxed: fine, the tab still works */ }

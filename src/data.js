@@ -2,7 +2,8 @@
 // The worlds read from this file — no magic numbers in the drawing code, so a
 // label can never drift away from the geometry it describes.
 //
-// Sources: NASA/JPL planetary fact sheets (equatorial radii, mean distances),
+// Sources: NASA/JPL planetary fact sheets (volumetric mean radii, semi-major
+// axes),
 // IAU 2012 definition of the astronomical unit, CODATA speed of light.
 
 export const KM = 1e3;
@@ -45,7 +46,11 @@ export const C_LIGHT = 299792458;   // m/s
 /** Surface-to-surface clearance between Earth and Moon at a given centre distance. */
 export const gap = (centreDistance) => centreDistance - EARTH.r - MOON.r;
 
-/** The other seven planets, in order from the Sun, equatorial diameters. */
+/**
+ * The other seven planets, in order from the Sun, as mean diameters — the
+ * figure the familiar "they all fit between the Earth and the Moon" claim is
+ * built on. Equatorial diameters would add about 10 000 km to the row.
+ */
 export const OTHER_PLANETS = [
   { name: 'Mercury', d: 4879 * KM, color: '#9c8d7f', color2: '#cbbfb2' },
   { name: 'Venus', d: 12104 * KM, color: '#d8a25c', color2: '#f4d9a8' },
@@ -61,10 +66,12 @@ export const PLANETS_TOTAL_D = OTHER_PLANETS.reduce((s, p) => s + p.d, 0);
 export const LY = 9.4607304725808e15;   // light-year, metres
 
 /**
- * All eight planets with the two numbers the explorer needs: the body's own
- * radius and the semi-major axis of its orbit. Angles are fixed rather than
- * simulated — this is a scale toy, not an ephemeris, and a frozen layout keeps
- * every planet findable between visits.
+ * All eight planets with the two numbers the app needs: the body's own radius
+ * and the semi-major axis of its orbit. Both are real; the angles are not.
+ * Where a planet sits along its orbit is fixed arbitrary, because this is a
+ * scale toy rather than an ephemeris, and a frozen layout keeps every planet
+ * findable between visits. Orbits are drawn as circles at the semi-major axis,
+ * so a planet's distance from the Sun is right to within its eccentricity.
  */
 export const PLANETS = [
   { name: 'Mercury', r: 2.4397e6, a: 5.7909e10, angle: 2.71, color: '#9c8d7f', color2: '#cbbfb2' },
@@ -98,7 +105,7 @@ export const LADDER = [
   { name: 'Mount Everest', r: 4425, note: 'height above sea level', color: '#e08fe8' },
   { name: 'Greater London', r: 2.5e4, note: 'across the city', color: '#ff8fcf' },
   { name: 'Earth', r: 6.371e6, note: 'mean radius', color: '#3f83d8' },
-  { name: 'Jupiter', r: 6.9911e7, note: 'equatorial radius', color: '#c8a07a' },
+  { name: 'Jupiter', r: 6.9911e7, note: 'mean radius', color: '#c8a07a' },
   { name: 'The Sun', r: 6.957e8, note: 'photosphere', color: '#ffae3d' },
   { en: "Earth's orbit", r: 1.495979e11, note: '1 astronomical unit', color: '#ffcf5c' },
   { en: "Neptune's orbit", r: 4.495060e12, note: '30 AU', color: '#4a72c8' },

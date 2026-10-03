@@ -149,6 +149,11 @@ body {
   color: var(--dim);
   line-height: 1.6;
   min-height: 1.6em;
+  /* A column of rows reads badly ragged under the HUD's right alignment. */
+  text-align: left;
+  /* Eight planets is a long list on a short screen. */
+  max-height: 42vh;
+  overflow-y: auto;
 }
 #clockArrivals b { color: var(--ink); font-weight: 500; }
 
