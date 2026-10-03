@@ -13,12 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// Each page is one HTML file plus the module it loads; the modules it imports
-// are inlined by walking the import graph from there.
-export const PAGES = {
-  index: { html: 'src/index.html', js: 'src/app.js' },
-  ladder: { html: 'src/ladder.html', js: 'src/ladder.js' },
-};
+const ENTRY_HTML = path.join(ROOT, 'src/index.html');
+const ENTRY_JS = path.join(ROOT, 'src/app.js');
 
 const IMPORT_RE = /^[ \t]*import[\s\S]*?from\s+['"]([^'"]+)['"];?[ \t]*\r?\n?/gm;
 
@@ -59,11 +55,9 @@ function topLevelNames(body) {
   return names;
 }
 
-/** Inline every module into the page's HTML and return it. */
-export async function buildBundle(page = PAGES.index) {
-  const entryHtml = path.join(ROOT, page.html);
-  const entryJs = path.join(ROOT, page.js);
-  const modules = await collect(entryJs);
+/** Inline every module into src/index.html and return the HTML. */
+export async function buildBundle() {
+  const modules = await collect(ENTRY_JS);
 
   const owner = new Map();
   for (const m of modules) {
@@ -82,9 +76,9 @@ export async function buildBundle(page = PAGES.index) {
     .map((m) => `// ---- ${path.relative(ROOT, m.abs)} ${'-'.repeat(Math.max(3, 66 - m.abs.length))}\n${m.body}`)
     .join('\n\n');
 
-  const html = await readFile(entryHtml, 'utf8');
-  const tag = `<script type="module" src="./${path.basename(entryJs)}"></script>`;
-  if (!html.includes(tag)) throw new Error(`entry script tag not found in ${page.html}`);
+  const html = await readFile(ENTRY_HTML, 'utf8');
+  const tag = /<script type="module" src="\.\/app\.js"><\/script>/;
+  if (!tag.test(html)) throw new Error('entry script tag not found in index.html');
 
   return { html: html.replace(tag, `<script>\n(() => {\n${js}\n})();\n</script>`), moduleCount: modules.length };
 }

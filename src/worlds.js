@@ -2,7 +2,7 @@
 // it never touches the DOM, the camera or the input layer — `g` hands it a
 // camera and a set of primitives and it paints metres.
 
-import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, LADDER, gap } from './data.js';
+import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, gap } from './data.js';
 import { lengthStr } from './units.js';
 
 // --------------------------------------------------------------- 01 ---------
@@ -89,21 +89,18 @@ const solarSystem = {
 
 // --------------------------------------------------------------- 03 ---------
 
+// The one world without a camera. `nested: true` tells app.js to hand the
+// canvas and the input to nested.js instead of panning and zooming; the ladder
+// it climbs is LADDER in data.js.
 const powersOfTen = {
   id: 'powers-of-ten',
   title: 'Powers of Ten',
-  hint: 'One continuous ladder from a proton to the observable universe — 42 decades.',
-  span: [2e-15, 6e27],
-  home: { cx: 0, cy: 0, logSpan: Math.log10(4e7) },
+  hint: 'One thing fills the bar. Press → and it shrinks into the sliver it really is beside the next thing up — a proton to the observable universe.',
+  nested: true,
   tools: [],
   lightOrigin: { x: 0, y: 0 },
   lightTargets: () => [],
-
-  draw(g) {
-    for (const item of LADDER) {
-      g.ring({ r: item.r, color: item.color, alpha: 0.85, label: item.name, note: item.note, bold: true });
-    }
-  },
+  draw() {},
 };
 
 // ---------------------------------------------------------------------------

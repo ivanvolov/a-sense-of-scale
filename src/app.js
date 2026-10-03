@@ -7,6 +7,7 @@
 
 import { C_LIGHT } from './data.js';
 import { WORLDS, worldById } from './worlds.js';
+import { createNested } from './nested.js';
 import { lengthStr, lightTime, clockFace, niceBar, duration } from './units.js';
 
 const clamp = (v, lo = 0, hi = 1) => (v < lo ? lo : v > hi ? hi : v);
@@ -110,6 +111,7 @@ function gestureState() {
 }
 
 canvas.addEventListener('pointerdown', (e) => {
+  if (world.nested) { dismissHint(); nested.pointerDown(e.clientX - rect.left); return; }
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
   prevGesture = gestureState();
@@ -119,7 +121,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (!pointers.has(e.pointerId)) return;
+  if (world.nested || !pointers.has(e.pointerId)) return;
   pointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
   const cur = gestureState();
   // Only act when the finger count is unchanged — adding or lifting a finger
@@ -135,6 +137,7 @@ canvas.addEventListener('pointermove', (e) => {
 
 for (const type of ['pointerup', 'pointercancel']) {
   canvas.addEventListener(type, (e) => {
+    if (world.nested) { if (type === 'pointerup') nested.pointerUp(e.clientX - rect.left); return; }
     pointers.delete(e.pointerId);
     prevGesture = gestureState();
     if (!pointers.size) canvas.classList.remove('dragging');
@@ -144,15 +147,17 @@ for (const type of ['pointerup', 'pointercancel']) {
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   dismissHint();
+  if (world.nested) { nested.wheel(e.deltaY); return; }
   tween = null;
   // A trackpad pinch arrives as ctrl+wheel and wants a much larger step.
   const k = e.ctrlKey ? 0.012 : 0.0022;
   zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY * k);
 }, { passive: false });
 
-canvas.addEventListener('dblclick', () => goHome());
+canvas.addEventListener('dblclick', () => { if (!world.nested) goHome(); });
 
 addEventListener('keydown', (e) => {
+  if (world.nested) { if (nested.key(e)) { e.preventDefault(); dismissHint(); } return; }
   if (e.key === '+' || e.key === '=') zoomAt(w / 2, h / 2, -0.25);
   else if (e.key === '-' || e.key === '_') zoomAt(w / 2, h / 2, 0.25);
   else if (e.key === '0') goHome();
@@ -178,6 +183,7 @@ function resize() {
   starfield = Array.from({ length: Math.round((w * h) / 5200) }, () => ({
     x: r() * w, y: r() * h, s: 0.4 + r() * 1.3, a: 0.1 + r() * 0.5,
   }));
+  nested.resize(w, h);
 }
 
 function background() {
@@ -394,6 +400,8 @@ function drawPulse() {
 
 const el = (id) => document.getElementById(id);
 
+const nested = createNested({ ctx, el, palette: PALETTE });
+
 function updateHud() {
   const s = scaleOf();
   const targetPx = Math.min(200, w * 0.22);
@@ -424,6 +432,13 @@ function frame(now) {
   tickPulse(dt);
 
   background();
+  if (world.nested) {
+    // No camera here: the nested view paints itself over the stars and the
+    // scale readout stays hidden, since there is no one scale to read.
+    nested.render(now);
+    requestAnimationFrame(frame);
+    return;
+  }
   const deferred = [];
   world.draw({
     ctx, w, h, diag, view, state,
@@ -504,6 +519,7 @@ function startPulse() {
 }
 
 function selectWorld(id) {
+  if (world.nested) nested.unmount();
   world = worldById(id);
   state.planets = false;
   pulse.on = false;
@@ -517,8 +533,14 @@ function selectWorld(id) {
   buildTabs();
   buildTools();
   labelLightButton();
-  goHome(false);
-  if (world.autoLight) startPulse();
+  el('clock').classList.remove('on');
+  if (world.nested) {
+    nested.mount();
+    dismissHint();          // the pinch-and-drag card would be a lie here
+  } else {
+    goHome(false);
+    if (world.autoLight) startPulse();
+  }
   try { location.hash = world.id; } catch { /* sandboxed: fine, the tab still works */ }
 }
 
@@ -623,7 +645,7 @@ requestAnimationFrame((t) => { lastFrame = t; frame(t); });
 
 // A small surface for automated checks: drive the camera without a mouse.
 window.__explorer = {
-  view, pulse, state,
+  view, pulse, state, nested,
   select: selectWorld,
   setSpan(metres) { tween = null; view.logSpan = clamp(Math.log10(metres), ...spanBounds()); },
   center(x, y) { view.cx = x; view.cy = y; },

@@ -259,6 +259,70 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
   gap: 8px;
 }
 
+/* ---------------------------------------------------------- nested bars --- */
+
+/* Powers of Ten has no camera, so the scale readout and the reset button make
+   no sense there; a strip of arrows and rung dots takes the bottom edge. */
+#nested {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 0 max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+}
+body.nested #nested { display: flex; }
+body.nested #scale, body.nested #reset { display: none; }
+.arrow {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: 600 24px var(--sans);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(10px);
+  transition: border-color .15s, color .15s, opacity .15s;
+}
+.arrow:hover { border-color: var(--accent); color: var(--accent); }
+.arrow:disabled { opacity: .25; cursor: default; }
+.arrow:disabled:hover { border-color: var(--line); color: var(--ink); }
+#nestedDots {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 1 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: .28;
+  cursor: pointer;
+  transition: transform .2s, opacity .2s;
+}
+.dot:hover { opacity: .7; }
+.dot.on { opacity: 1; transform: scale(1.6); }
+#nestedCount {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  min-width: 5ch;
+  text-align: right;
+}
+
 /* ----------------------------------------------------- add-to-home sheet --- */
 
 /* `display: grid` would beat the UA rule for [hidden] and leave a full-screen
@@ -334,7 +398,13 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
   /* Both corners are at the bottom; on a narrow screen the buttons wrap far
      enough left to sit on top of the scale, so lift them clear of it. */
   #actions { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px); }
+  .arrow { width: 48px; height: 48px; font-size: 20px; }
+  .dot { width: 6px; height: 6px; flex-basis: 6px; }
+  #nestedDots { gap: 3px; }
+  #nestedCount { display: none; }
 }
+/* The install button would otherwise land on the → arrow. */
+body.nested #actions { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 72px); }
 </style>
 
 <canvas id="stage"></canvas>
@@ -376,6 +446,13 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
   <span id="tools" style="display:contents"></span>
   <button class="chip" id="reset">Reset view</button>
   <button class="chip install" id="install" hidden>＋ Add to Home Screen</button>
+</div>
+
+<div id="nested">
+  <button class="arrow" id="nestedPrev" aria-label="Smaller">←</button>
+  <div id="nestedDots"></div>
+  <div id="nestedCount">—</div>
+  <button class="arrow" id="nestedNext" aria-label="Bigger">→</button>
 </div>
 
 <div id="iosSheet" hidden>

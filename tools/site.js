@@ -13,7 +13,7 @@ import { mkdir, writeFile, readdir, copyFile, readFile, rm } from 'node:fs/promi
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildBundle, PAGES } from './bundle.js';
+import { buildBundle } from './bundle.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = path.join(ROOT, 'src/assets');
@@ -75,16 +75,6 @@ const head = (version) => `
 <!-- build ${version} -->
 `.trim();
 
-const headLite = (version) => `
-<meta name="description" content="One thing fills the bar; press → and it shrinks into the sliver it really is next to the next thing up — a proton to the observable universe, one honest ratio at a time.">
-<meta name="theme-color" content="#060a16">
-<meta name="color-scheme" content="dark">
-<link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
-<link rel="icon" href="./assets/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
-<!-- build ${version} -->
-`.trim();
-
 const REGISTER = `
 <script>
   // Offline is the point once it lives on a home screen: launching from the
@@ -103,7 +93,7 @@ const FONTS = 'fonts-v1';
 // Relative to the worker's own URL, so the same file works at the origin root
 // and under a project path like /a-sense-of-scale/.
 const SHELL_URLS = [
-  './', './index.html', './ladder.html', './manifest.webmanifest',
+  './', './index.html', './manifest.webmanifest',
   './assets/icon.svg', './assets/icon-192.png', './assets/apple-touch-icon.png',
 ];
 
@@ -181,12 +171,6 @@ if (!page.includes('rel="manifest"')) throw new Error('head injection failed —
 await rm(DIST, { recursive: true, force: true });
 await mkdir(path.join(DIST, 'assets'), { recursive: true });
 await writeFile(path.join(DIST, 'index.html'), `${page}\n${REGISTER}\n`);
-
-// The nested-bars page: same icons and theme, no manifest of its own — it is a
-// side door into the same install, not a second app.
-const ladder = (await buildBundle(PAGES.ladder)).html
-  .replace(/^(<title>.*<\/title>)/m, `$1\n${headLite(version)}`);
-await writeFile(path.join(DIST, 'ladder.html'), `${ladder}\n`);
 await writeFile(path.join(DIST, 'manifest.webmanifest'), `${JSON.stringify(MANIFEST, null, 2)}\n`);
 await writeFile(path.join(DIST, 'sw.js'), sw(version));
 // Keeps GitHub Pages from running the output through Jekyll.

@@ -27,10 +27,12 @@ const SHOTS = [
   ['earth-moon', 6.0e8, [1.92e8, 0], 'gap-planets', { planets: true }],
   ['solar-system', null, null, 'home'],
   ['solar-system', 4.0e11, [0, 0], 'inner'],
-  ['powers-of-ten', 4e-9, [0, 0], 'atom'],
-  ['powers-of-ten', 3e7, [0, 0], 'earth'],
-  ['powers-of-ten', 2e22, [0, 0], 'galaxy'],
-  ['powers-of-ten', 4e27, [0, 0], 'universe'],
+  // Powers of Ten has no camera: the sixth field parks it on a rung, or a
+  // fraction of the way into the tween towards the next one.
+  ['powers-of-ten', null, null, 'human', null, ['human', 0]],
+  ['powers-of-ten', null, null, 'human-mid', null, ['human', 0.6]],
+  ['powers-of-ten', null, null, 'atom', null, ['hydrogen-atom', 0]],
+  ['powers-of-ten', null, null, 'universe', null, ['observable-universe', 0]],
 ];
 
 function chromiumExecutable() {
@@ -63,15 +65,16 @@ await page.goto(url, { waitUntil: 'load' });
 await page.waitForFunction('window.__explorer !== undefined', null, { timeout: 15000 });
 await page.evaluate(() => document.fonts.ready);
 
-for (const [worldId, span, center, tag, state] of SHOTS) {
-  await page.evaluate(([id, sp, c, st]) => {
+for (const [worldId, span, center, tag, state, rung] of SHOTS) {
+  await page.evaluate(([id, sp, c, st, rg]) => {
     const x = window.__explorer;
     x.select(id);
     if (st) Object.assign(x.state, st);
     if (sp) x.setSpan(sp);
     if (c) x.center(c[0], c[1]);
+    if (rg) x.nested.show(rg[0], rg[1]);
     document.getElementById('firstRun').style.display = 'none';
-  }, [worldId, span, center, state]);
+  }, [worldId, span, center, state, rung]);
   // Let the pulse travel a little before we photograph it.
   await page.waitForTimeout(260);
   const file = path.join(OUT, `${deviceName}-${worldId}-${tag}.png`);
