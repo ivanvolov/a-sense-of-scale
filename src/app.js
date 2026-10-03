@@ -544,7 +544,8 @@ function selectWorld(id) {
   try { location.hash = world.id; } catch { /* sandboxed: fine, the tab still works */ }
 }
 
-el('reset').onclick = () => goHome();
+// In Powers of Ten "home" is the human rung, the one everybody has a feel for.
+el('reset').onclick = () => (world.nested ? nested.home() : goHome());
 
 function dismissHint() {
   const f = el('firstRun');

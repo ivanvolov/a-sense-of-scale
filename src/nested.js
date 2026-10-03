@@ -1,6 +1,7 @@
 // Nested bars — the Powers of Ten view. One rung fills the width; press → and
 // the scale tweens in log space so it shrinks into the sliver it really is
-// beside the next rung up. There is no camera to drive, so this view owns its
+// beside the next rung up. Bars hang from the right edge, so the small thing
+// is always at the right and the end that moves is on the left. There is no camera to drive, so this view owns its
 // own input and a strip of chrome at the bottom; app.js hands it the canvas,
 // the frame clock and the events while it is the selected world.
 //
@@ -36,7 +37,8 @@ export function createNested({ ctx, el, palette }) {
   const mono = (px, wt = 500) => `${wt} ${px}px 'JetBrains Mono', ui-monospace, Menlo, monospace`;
 
   let w = 0, h = 0;
-  let k = RUNGS.findIndex((r) => r.name === 'Human');
+  const HOME = RUNGS.findIndex((r) => r.name === 'Human');
+  let k = HOME;
   // `pos` is the fractional rung the view sits at; the bar of rung `pos` is
   // exactly full width. Between rungs it is interpolated in log size.
   let pos = k;
@@ -104,7 +106,8 @@ export function createNested({ ctx, el, palette }) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = RUNGS[b.i].color;
-      rrect(0, y - barH / 2, Math.min(b.drawW, w + 40), barH, b.drawW > 8 ? 4 : 1.5);
+      const bw = Math.min(b.drawW, w + 40);
+      rrect(w - bw, y - barH / 2, bw, barH, b.drawW > 8 ? 4 : 1.5);
       ctx.fill();
       ctx.restore();
     }
@@ -120,12 +123,14 @@ export function createNested({ ctx, el, palette }) {
       // Full size when this bar fills the width, small once it is a tenth of it.
       const s = clip(1 + over);
       const alpha = clip(1 + over / 2.4, 0.35, 1);
-      placed.push({ b, x: clip(b.drawW, 54, full), s, alpha });
+      placed.push({ b, x: w - clip(b.drawW, 54, full), s, alpha });
     }
+    // The sliver's label and the current one meet only when the ratio is
+    // small; nudge the smaller one right when they overlap.
     for (let n = placed.length - 1; n > 0; n--) {
       const a = placed[n - 1], c = placed[n];
       const need = 70 * a.s + 70 * c.s + 12;
-      if (c.x - a.x < need) a.x = Math.max(54, c.x - need);
+      if (a.x - c.x < need) a.x = Math.min(w - 54, c.x + need);
     }
     for (const p of placed) medallion(p.b, p.x, y - barH / 2, p.s, p.alpha);
 
@@ -196,32 +201,18 @@ export function createNested({ ctx, el, palette }) {
     ctx.restore();
   }
 
-  /** "× 340" under the bar, and a plain note when the sliver is a lie of three pixels. */
+  /** "× 340" under the bar: how many of the sliver fit across the full one. */
   function ratio(y, barH, full, ppm) {
     const i = Math.round(pos);
     if (Math.abs(pos - i) > 0.35 || i === 0) return;
-    const prev = RUNGS[i - 1];
-    const sliver = prev.d * ppm;
-    const fade = clip(1 - Math.abs(pos - i) / 0.35);
-    const times = ratioStr(RUNGS[i].d / prev.d);
-    const sub = sliver < 2
-      ? (compact()
-        ? `${prev.name}: ${sliverStr(sliver)} here, drawn as a 3 px tick`
-        : `${prev.name} would be ${sliverStr(sliver)} wide here, so it is drawn as a 3 px tick`)
-      : `${times} ${pluralName(prev.name)} end to end`;
-
+    const sliver = Math.max(3, RUNGS[i - 1].d * ppm);
     ctx.save();
-    ctx.globalAlpha = fade;
+    ctx.globalAlpha = clip(1 - Math.abs(pos - i) / 0.35);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const x = Math.max(sliver, 3) + (full - Math.max(sliver, 3)) / 2;
     ctx.font = mono(compact() ? 22 : 30, 600);
     ctx.fillStyle = palette.ink;
-    ctx.fillText(`× ${times}`, x, y + barH / 2 + 16);
-    ctx.font = sans(compact() ? 12 : 14, 400);
-    ctx.fillStyle = palette.dim;
-    const half = ctx.measureText(sub).width / 2;
-    ctx.fillText(sub, clip(x, half + 12, w - half - 12), y + barH / 2 + 16 + (compact() ? 30 : 40));
+    ctx.fillText(`× ${ratioStr(RUNGS[i].d / RUNGS[i - 1].d)}`, w - sliver - (full - sliver) / 2, y + barH / 2 + 16);
     ctx.restore();
   }
 
@@ -234,23 +225,6 @@ export function createNested({ ctx, el, palette }) {
     const s = v >= 100 ? Math.round(v) : v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100;
     return s.toLocaleString('en-US', { maximumFractionDigits: 2 }).replace(/,/g, ' ');
   };
-  const sliverStr = (px) => (px < 0.01 ? `${digits(px * 1000)} thousandths of a pixel` : `${digits(px)} px`);
-
-  // Enough English for a ladder of 24 names.
-  function pluralName(name) {
-    const lower = name.replace(/^(The|One|Greater) /, '').toLowerCase();
-    if (name === 'Human') return 'humans';
-    if (name === 'Football pitch') return 'pitches';
-    if (name === 'Burj Khalifa' || name === 'Mount Everest' || name === 'Proxima Centauri') return `${name}s`;
-    if (name === 'Greater London') return 'Londons';
-    if (name === 'The Sun') return 'Suns';
-    if (name === 'The Milky Way') return 'Milky Ways';
-    if (name === 'Observable universe') return 'observable universes';
-    if (/orbit$/.test(name)) return `${name}s`;
-    if (lower.endsWith('s') || lower.endsWith('x')) return `${lower}es`;
-    if (lower.endsWith('y')) return `${lower.slice(0, -1)}ies`;
-    return `${lower}s`;
-  }
 
   function rrect(x, y, bw, bh, r) {
     r = Math.min(r, bw / 2, bh / 2);
@@ -334,6 +308,7 @@ export function createNested({ ctx, el, palette }) {
     else if (e.key === 'ArrowLeft') go(k - 1);
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(RUNGS.length - 1);
+    else if (e.key === '0') go(HOME);
     else return false;
     return true;
   }
@@ -352,6 +327,7 @@ export function createNested({ ctx, el, palette }) {
 
   return {
     mount, unmount, render, go, show,
+    home: () => go(HOME),
     resize(width, height) { w = width; h = height; },
     pointerDown, pointerUp, wheel, key,
     get rung() { return k; },

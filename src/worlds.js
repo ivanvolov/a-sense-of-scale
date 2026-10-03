@@ -95,7 +95,7 @@ const solarSystem = {
 const powersOfTen = {
   id: 'powers-of-ten',
   title: 'Powers of Ten',
-  hint: 'One thing fills the bar. Press → and it shrinks into the sliver it really is beside the next thing up — a proton to the observable universe.',
+  hint: 'A proton to the observable universe, one ratio at a time.',
   nested: true,
   tools: [],
   lightOrigin: { x: 0, y: 0 },

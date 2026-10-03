@@ -16,7 +16,7 @@ reset, `+` `−` `0` on the keyboard.
 |---|---|
 | **Earth & Moon** | Zoom out until the Moon shows up. One button lays the other seven planets into the gap — they overshoot by 3 724 km. |
 | **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. Send a pulse of light from the Sun and watch it reach each one, with a clock and a time multiplier. |
-| **Powers of Ten** | One thing fills the bar. Press → (or swipe) and it shrinks into the sliver it really is beside the next thing up: a proton to the observable universe in 24 steps, each ratio spelled out. |
+| **Powers of Ten** | One thing fills the bar. Press → (or swipe) and it shrinks into the sliver it really is beside the next thing up: a proton to the observable universe in 24 steps. |
 
 The readout top right gives a scale bar and the time light needs to cross it.
 
