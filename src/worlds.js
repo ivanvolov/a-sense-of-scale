@@ -2,8 +2,11 @@
 // it never touches the DOM, the camera or the input layer — `g` hands it a
 // camera and a set of primitives and it paints metres.
 
-import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, LADDER, gap } from './data.js';
-import { lengthStr } from './units.js';
+import {
+  EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, LADDER, gap,
+  HISTORY, HISTORY_SPAN,
+} from './data.js';
+import { lengthStr, calendarLabel, niceBelow } from './units.js';
 
 // --------------------------------------------------------------- 01 ---------
 
@@ -152,7 +155,84 @@ function midChip(g, x0, x1, text, opts = {}) {
   g.chip({ x: mid, y: g.sy(0) - (opts.y ?? 26), text, color: opts.color });
 }
 
-export const WORLDS = [earthMoon, solarSystem, powersOfTen];
+// --------------------------------------------------------------- 04 ---------
+
+/**
+ * Human history on one line. The world x axis is negative years before the
+ * present, so the past runs left and now sits at the origin — the same camera
+ * as the other modes, measuring years instead of metres.
+ */
+const deepTime = {
+  id: 'deep-time',
+  title: 'Human History',
+  unit: 'time',
+  hint: 'Two hundred thousand years on one line. Play it at 50 years a second and the whole of it runs an hour — everything you were taught in school arrives in the last two minutes.',
+  span: [2, 4e5],
+  home: { cx: -HISTORY_SPAN / 2, cy: 0, logSpan: Math.log10(2.3e5) },
+  tools: ['play'],
+  playRates: [50, 250, 1000],
+  playFrom: HISTORY_SPAN,
+  events: () => HISTORY,
+
+  draw(g) {
+    const { ctx } = g;
+    const y = g.sy(0);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(133,147,173,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(g.w, y);
+    ctx.stroke();
+
+    // A plain ruler underneath: the scale bar names the interval, so these
+    // carry no text of their own.
+    const step = niceBelow(g.span / 6);
+    const first = Math.ceil(g.wx(0) / step) * step;
+    ctx.strokeStyle = 'rgba(133,147,173,0.22)';
+    for (let x = first; x <= g.wx(g.w); x += step) {
+      const px = g.sx(x);
+      ctx.beginPath();
+      ctx.moveTo(px, y + 1);
+      ctx.lineTo(px, y + 9);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    for (const e of HISTORY) {
+      const px = g.sx(-e.ago);
+      if (px < -40 || px > g.w + 40) continue;
+      const strong = !!e.major;
+
+      ctx.save();
+      ctx.strokeStyle = strong ? '#ffcf5c' : 'rgba(143,196,245,0.7)';
+      ctx.lineWidth = strong ? 1.6 : 1;
+      ctx.beginPath();
+      ctx.moveTo(px, y - (strong ? 20 : 12));
+      ctx.lineTo(px, y);
+      ctx.stroke();
+      ctx.fillStyle = strong ? '#ffcf5c' : '#8fc4f5';
+      ctx.beginPath();
+      ctx.arc(px, y, strong ? 3.2 : 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      g.label({
+        x: px,
+        y: y - (strong ? 28 : 20),
+        text: e.name,
+        note: e.note ? `${calendarLabel(e.ago)} · ${e.note}` : calendarLabel(e.ago),
+        color: strong ? '#ffcf5c' : '#eaf0fb',
+        priority: strong ? 2e6 : 1e6,
+      });
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+
+export const WORLDS = [earthMoon, solarSystem, powersOfTen, deepTime];
 
 // 'light-speed' was its own mode until it turned out to be this one with a
 // closer opening shot; the alias keeps old links and installed shortcuts alive.

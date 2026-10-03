@@ -7,7 +7,10 @@
 
 import { C_LIGHT } from './data.js';
 import { WORLDS, worldById } from './worlds.js';
-import { lengthStr, lightTime, clockFace, niceBar, duration } from './units.js';
+import {
+  lengthStr, lightTime, clockFace, niceBar, duration,
+  yearsStr, calendarLabel, niceBarYears,
+} from './units.js';
 
 const clamp = (v, lo = 0, hi = 1) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a, b, u) => a + (b - a) * u;
@@ -42,6 +45,9 @@ let world = WORLDS[0];
 const view = { cx: 0, cy: 0, logSpan: 0 };
 const state = { planets: false };
 const pulse = { on: false, sim: 0, speed: 1, arrivals: [], next: 0 };
+// Deep Time's playhead. Same shape as the pulse, but `rate` is years of history
+// per second of playback rather than a multiplier on a clock.
+const play = { on: false, sim: 0, rate: 50, passed: [], next: 0, follow: true };
 
 let tween = null;
 let lastFrame = performance.now();
@@ -116,6 +122,7 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.classList.add('dragging');
   dismissHint();
   tween = null;
+  play.follow = false;
 });
 
 canvas.addEventListener('pointermove', (e) => {
@@ -147,6 +154,7 @@ canvas.addEventListener('wheel', (e) => {
   tween = null;
   // A trackpad pinch arrives as ctrl+wheel and wants a much larger step.
   const k = e.ctrlKey ? 0.012 : 0.0022;
+  play.follow = false;
   zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY * k);
 }, { passive: false });
 
@@ -164,8 +172,23 @@ addEventListener('keydown', (e) => {
 
 let starfield = [];
 
+let backingDpr = 0;
+
+/**
+ * True when the backing store no longer matches the box it is being stretched
+ * into. Letting that persist scales x and y by different factors, which turns
+ * every circle into an ellipse — the whole view reads as if it were tilted.
+ */
+function staleCanvas() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  return dpr !== backingDpr
+    || Math.round(canvas.clientWidth) !== w
+    || Math.round(canvas.clientHeight) !== h;
+}
+
 function resize() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
+  backingDpr = dpr;
   rect = canvas.getBoundingClientRect();
   w = Math.max(1, Math.round(rect.width));
   h = Math.max(1, Math.round(rect.height));
@@ -390,6 +413,43 @@ function drawPulse() {
   ctx.restore();
 }
 
+/** Years before the present that the playhead has reached. */
+const playAgo = () => Math.max(0, (world.playFrom ?? 0) - play.sim * play.rate);
+
+function tickPlay(dt) {
+  if (!world.playRates || !play.on) return;
+  play.sim += dt;
+  const ago = playAgo();
+
+  const events = world.events();
+  while (play.next < events.length && events[play.next].ago >= ago) {
+    play.passed.push(events[play.next]);
+    play.next++;
+  }
+  if (ago <= 0) play.on = false;
+
+  // Float along with it, the way the video does — until the person takes the
+  // wheel. Snapping back the moment they let go would make panning impossible.
+  if (play.follow && !pointers.size && !tween) view.cx = -ago;
+}
+
+function drawPlayhead() {
+  if (!world.playRates || (!play.on && play.sim === 0)) return;
+  const px = sx(-playAgo());
+  if (px < -20 || px > w + 20) return;
+
+  ctx.save();
+  ctx.strokeStyle = PALETTE.cool;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = PALETTE.cool;
+  ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.moveTo(px, 0);
+  ctx.lineTo(px, h);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // -------------------------------------------------------------------- HUD ---
 
 const el = (id) => document.getElementById(id);
@@ -397,13 +457,42 @@ const el = (id) => document.getElementById(id);
 function updateHud() {
   const s = scaleOf();
   const targetPx = Math.min(200, w * 0.22);
-  const bar = niceBar(targetPx / s);
-  el('scalebar').style.width = `${Math.round(bar.metres * s)}px`;
-  el('scaleValue').textContent = bar.text;
-  el('scaleLight').innerHTML = `light crosses this in <b>${lightTime(bar.metres)}</b>`;
+  if (world.unit === 'time') {
+    const bar = niceBarYears(targetPx / s);
+    el('scalebar').style.width = `${Math.round(bar.years * s)}px`;
+    el('scaleValue').textContent = bar.text;
+    el('scaleLight').innerHTML = `<b>${duration(bar.years / play.rate)}</b> of playback at ${play.rate} years/s`;
+  } else {
+    const bar = niceBar(targetPx / s);
+    el('scalebar').style.width = `${Math.round(bar.metres * s)}px`;
+    el('scaleValue').textContent = bar.text;
+    el('scaleLight').innerHTML = `light crosses this in <b>${lightTime(bar.metres)}</b>`;
+  }
+
+  if (world.playRates) {
+    const running = play.on || play.sim > 0;
+    el('clock').classList.toggle('on', running);
+    if (running) {
+      const ago = playAgo();
+      const label = calendarLabel(ago);
+      el('clock').classList.toggle('wide', label.length > 8);
+      el('clockTime').textContent = label;
+      el('clockSpeed').textContent = `${play.rate} years/s`;
+      el('clockTravel').textContent = `${yearsStr(world.playFrom - ago)} elapsed`;
+      const list = el('clockArrivals');
+      if (list.childElementCount !== play.passed.length) {
+        list.innerHTML = play.passed
+          .map((e) => `<b>${e.name}</b> · ${calendarLabel(e.ago)}`).join('<br>');
+        list.scrollTop = list.scrollHeight;   // keep the newest in view
+      }
+      labelPlayButton();
+    }
+    return;
+  }
 
   const showClock = pulse.on || pulse.sim > 0;
   el('clock').classList.toggle('on', showClock);
+  el('clock').classList.remove('wide');
   if (showClock) {
     el('clockTime').textContent = clockFace(pulse.sim);
     el('clockSpeed').textContent = pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`;
@@ -417,22 +506,29 @@ function updateHud() {
 // ------------------------------------------------------------------- loop ---
 
 function frame(now) {
+  // Cheap insurance: a box change that never fired an event cannot outlive one
+  // frame. iOS collapses browser chrome and settles safe areas without one.
+  if (staleCanvas()) resize();
+
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
 
   stepTween(now);
   tickPulse(dt);
+  tickPlay(dt);
 
   background();
   const deferred = [];
   world.draw({
     ctx, w, h, diag, view, state,
-    scale: scaleOf(), sx, sy,
+    scale: scaleOf(), span: spanMetres(), sx, sy, wx, wy,
     body: drawBody, ring: drawRing, chip: drawChip,
+    label: (o) => labelQueue.push(o),
     after: (fn) => deferred.push(fn),   // chips belong on top of the bodies
   });
   for (const fn of deferred) fn();
   drawPulse();
+  drawPlayhead();
   paintLabels();
   updateHud();
 
@@ -464,6 +560,26 @@ function buildTools() {
     b.onclick = () => { state.planets = !state.planets; b.setAttribute('aria-pressed', String(state.planets)); };
     box.appendChild(b);
   }
+  if (world.tools.includes('play')) {
+    const b = document.createElement('button');
+    b.className = 'chip tool';
+    playButton = b;
+    b.onclick = () => { startPlay(); };
+    box.appendChild(b);
+
+    const rates = world.playRates;
+    const sp = document.createElement('button');
+    sp.className = 'chip';
+    const render = () => { sp.textContent = `${play.rate} years/s`; };
+    sp.onclick = () => {
+      play.rate = rates[(rates.indexOf(play.rate) + 1) % rates.length];
+      render();
+    };
+    if (!rates.includes(play.rate)) play.rate = rates[0];
+    render();
+    box.appendChild(sp);
+  }
+
   if (world.tools.includes('light')) {
     const b = document.createElement('button');
     b.className = 'chip tool';
@@ -488,6 +604,22 @@ function buildTools() {
 }
 
 let lightButton = null;
+let playButton = null;
+
+function labelPlayButton() {
+  if (playButton) playButton.textContent = play.sim > 0 ? '↻ Replay history' : '▶ Play history';
+}
+
+function startPlay() {
+  play.on = true;
+  play.follow = true;
+  play.sim = 0;
+  play.passed = [];
+  play.next = 0;
+  el('clockArrivals').innerHTML = '';
+  labelPlayButton();
+  dismissHint();
+}
 
 /** Label the one light control for what it will do next. */
 function labelLightButton() {
@@ -511,12 +643,19 @@ function selectWorld(id) {
   pulse.arrivals = [];
   pulse.next = 0;
   pulse.speed = world.timeScales ? world.timeScales[1] : 1;
+  play.on = false;
+  play.sim = 0;
+  play.passed = [];
+  play.next = 0;
+  playButton = null;
+  if (world.playRates && !world.playRates.includes(play.rate)) play.rate = world.playRates[0];
 
   el('worldTitle').textContent = world.title;
   el('worldHint').textContent = world.hint;
   buildTabs();
   buildTools();
   labelLightButton();
+  labelPlayButton();
   goHome(false);
   if (world.autoLight) startPulse();
   try { location.hash = world.id; } catch { /* sandboxed: fine, the tab still works */ }
@@ -530,51 +669,6 @@ function dismissHint() {
 }
 el('firstRun').onclick = dismissHint;
 setTimeout(dismissHint, 6500);
-
-// --------------------------------------------------- add to home screen ----
-
-/**
- * Two different worlds. Chrome and Edge fire `beforeinstallprompt` and let us
- * trigger the real installer; Safari has no such API, so iOS gets a card
- * telling it where the Share menu is. Neither applies inside an iframe — there
- * the install would bookmark the host page, not this one — nor once the app is
- * already running from the home screen.
- */
-const standalone = () =>
-  matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-
-const isIosSafari = () => {
-  const ua = navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  return iOS && !/CriOS|FxiOS|EdgiOS/.test(ua);
-};
-
-let installEvent = null;
-const installBtn = el('install');
-const framed = window.top !== window.self;
-
-addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  installEvent = e;
-  if (!framed && !standalone()) installBtn.hidden = false;
-});
-
-addEventListener('appinstalled', () => { installBtn.hidden = true; installEvent = null; });
-
-if (!framed && !standalone() && isIosSafari()) installBtn.hidden = false;
-
-installBtn.onclick = async () => {
-  if (installEvent) {
-    installEvent.prompt();
-    const { outcome } = await installEvent.userChoice;
-    installEvent = null;
-    if (outcome === 'accepted') installBtn.hidden = true;
-    return;
-  }
-  el('iosSheet').hidden = false;
-};
-el('iosClose').onclick = () => { el('iosSheet').hidden = true; };
-el('iosSheet').onclick = (e) => { if (e.target === el('iosSheet')) el('iosSheet').hidden = true; };
 
 // ------------------------------------------------------------------ helpers -
 
@@ -617,13 +711,15 @@ function shade(hex, amount) {
 // ------------------------------------------------------------------- boot ---
 
 addEventListener('resize', resize);
+// Fires on any box change, including the ones window.resize misses.
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => resize()).observe(canvas);
 resize();
 selectWorld((location.hash || '').replace('#', '') || WORLDS[0].id);
 requestAnimationFrame((t) => { lastFrame = t; frame(t); });
 
 // A small surface for automated checks: drive the camera without a mouse.
 window.__explorer = {
-  view, pulse, state,
+  view, pulse, play, state,
   select: selectWorld,
   setSpan(metres) { tween = null; view.logSpan = clamp(Math.log10(metres), ...spanBounds()); },
   center(x, y) { view.cx = x; view.cy = y; },

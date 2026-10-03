@@ -2,7 +2,7 @@
 // explorer goes through here so the same distance never appears as "0.0000001 km"
 // in one corner and "100 nm" in another.
 
-import { AU, C_LIGHT, LY } from './data.js';
+import { AU, C_LIGHT, LY, PRESENT_YEAR } from './data.js';
 
 const SI = [
   { f: 1e-15, s: 'fm' },
@@ -109,6 +109,33 @@ export function clockFace(s) {
   const ss = String(sec).padStart(2, '0');
   if (s < 86400) return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
   return `${(s / 86400).toFixed(2)} days`;
+}
+
+export function yearsStr(n) {
+  const v = Math.abs(n);
+  if (v >= 1000) return `${groupInt(Math.round(v))} years`;
+  if (v <= 0) return '0 years';
+  if (v < 1) return `${sig(v * 12)} months`;
+  const r = v < 10 ? sig(v) : String(Math.round(v));
+  return `${r} year${r === '1' ? '' : 's'}`;
+}
+
+/**
+ * An age in years turned into the label a person would read off a timeline.
+ * A calendar year is written plainly — 1969, not 1 969 — until it is old
+ * enough that the grouping helps rather than looks like a mistake.
+ */
+export function calendarLabel(ago) {
+  if (ago < 0.5) return 'now';
+  const y = PRESENT_YEAR - Math.round(ago);
+  const fmt = (n) => (n < 10000 ? String(n) : groupInt(n));
+  return y > 0 ? fmt(y) : `${fmt(1 - y)} BCE`;
+}
+
+/** The time axis equivalent of niceBar. */
+export function niceBarYears(v) {
+  const years = niceBelow(v);
+  return { years, text: yearsStr(years) };
 }
 
 /** Largest 1/2/5 × 10ⁿ that is at most `v` — the length of a map scale bar. */

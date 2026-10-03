@@ -17,6 +17,7 @@ reset, `+` `−` `0` on the keyboard.
 | **Earth & Moon** | Zoom out until the Moon shows up. One button lays the other seven planets into the gap — they overshoot by 3 724 km. |
 | **Solar System** | Orbits of all eight planets. Zoom in on any of them and it stays a dot. Send a pulse of light from the Sun and watch it reach each one, with a clock and a time multiplier. |
 | **Powers of Ten** | Concentric sizes from a proton to the observable universe. |
+| **Human History** | 200 000 years on one line. Play it at 50 years a second and the whole of it runs an hour; everything taught in school arrives in the last two minutes. |
 
 The readout top right gives a scale bar and the time light needs to cross it.
 
@@ -34,8 +35,8 @@ npm run icons     # redraw icons and the social preview
 
 ## How it holds 42 orders of magnitude
 
-The camera state is `logSpan`: the base-10 log of how many metres fit across the
-viewport. A pinch becomes an addition, a zoom tween interpolates one number, and
+The camera state is `logSpan`: the base-10 log of how many units fit across the
+viewport — metres in three modes, years in Human History. A pinch becomes an addition, a zoom tween interpolates one number, and
 nothing accumulates the multiplications that cost precision. A 3D engine cannot
 hold this range — float32 in a vertex buffer starts fighting well before 10¹² m.
 
@@ -48,7 +49,7 @@ disc. Rounding it up would lie about the one thing the page exists to show.
 src/
   index.html   markup and styles
   app.js       camera, gestures, drawing, HUD
-  worlds.js    the three modes: data plus one draw(g) each
+  worlds.js    the four modes: data plus one draw(g) each
   units.js     formatting across 42 decades
   data.js      every number, SI units, with its source
   assets/      icons and the social preview

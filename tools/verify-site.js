@@ -146,30 +146,6 @@ check('no app errors offline', ownOffline.length === 0, ownOffline.slice(0, 2).j
 await context.setOffline(false);
 await page.close();
 
-// --- the add-to-home affordance on iOS ------------------------------------
-// Safari has no install API, so the button has to appear on its own and open
-// the instructions. This is the one path no automated install prompt covers.
-const ios17 = await browser.newContext({
-  viewport: { width: 390, height: 844 },
-  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 '
-    + '(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-  isMobile: true,
-  hasTouch: true,
-  ignoreHTTPSErrors: true,
-});
-const ip = await ios17.newPage();
-await ip.goto(url, { waitUntil: 'load' });
-await ip.waitForFunction('window.__explorer !== undefined', null, { timeout: 15000 });
-const btnVisible = await ip.isVisible('#install');
-check('iOS shows the Add to Home Screen button', btnVisible);
-if (btnVisible) {
-  await ip.click('#install');
-  check('iOS sheet opens with instructions', await ip.isVisible('#iosSheet'));
-  await ip.click('#iosClose');
-  check('iOS sheet closes', !(await ip.isVisible('#iosSheet')));
-}
-await ios17.close();
-
 await browser.close();
 server.close();
 

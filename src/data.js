@@ -115,3 +115,68 @@ export const LADDER = [
   { name: 'Local Group', r: 2.4e22, note: 'our galaxy cluster', color: '#9a8fff' },
   { name: 'Observable universe', r: 4.4e26, note: '46.5 billion light-years', color: '#ffffff' },
 ];
+
+// ---------------------------------------------------------------------------
+// Human history, for the Deep Time mode.
+// ---------------------------------------------------------------------------
+
+/** What "now" means when turning an age into a calendar label. */
+export const PRESENT_YEAR = 2025;
+
+/** How far back the mode reaches, in years. */
+export const HISTORY_SPAN = 200000;
+
+/**
+ * Dates are approximate and many are actively argued over — the earliest ones
+ * can move by tens of thousands of years as a single site is re-dated. They are
+ * here to carry a sense of proportion, not to settle a question. Events are
+ * written with whichever field is natural, `ago` in years or a calendar `year`,
+ * and normalised below so the recent ones cannot drift as PRESENT_YEAR moves.
+ *
+ * `major` marks the ones worth keeping when labels collide at low zoom.
+ */
+const EVENTS = [
+  { ago: 200000, name: 'Modern humans', note: 'Homo sapiens in Africa', major: true },
+  { ago: 164000, name: 'Seafood', note: 'Pinnacle Point, South Africa' },
+  { ago: 120000, name: 'Shell beads', note: 'the earliest known ornament' },
+  { ago: 100000, name: 'Deliberate burial', note: 'Qafzeh and Skhul' },
+  { ago: 77000, name: 'Engraved ochre', note: 'Blombos Cave', major: true },
+  { ago: 70000, name: 'Out of Africa', note: 'the expansion that peopled the world', major: true },
+  { ago: 65000, name: 'Australia', note: 'Madjedbebe' },
+  { ago: 50000, name: 'Bone tools and needles' },
+  { ago: 45000, name: 'Europe' },
+  { ago: 44000, name: 'Figurative painting', note: 'Sulawesi', major: true },
+  { ago: 40000, name: 'Music', note: 'bone flutes' },
+  { ago: 36000, name: 'Chauvet' },
+  { ago: 30000, name: 'Dogs', note: 'earliest domestication, debated' },
+  { ago: 26000, name: 'Woven cloth', note: 'Dolní Věstonice' },
+  { ago: 20000, name: 'Glacial maximum', note: 'the ice at its greatest', major: true },
+  { ago: 16000, name: 'The Americas' },
+  { ago: 14000, name: 'Pottery', note: 'Jōmon, Japan' },
+  { ago: 11600, name: 'Göbekli Tepe' },
+  { ago: 11000, name: 'Farming', note: 'the Fertile Crescent', major: true },
+  { ago: 9000, name: 'Çatalhöyük' },
+  { ago: 6000, name: 'The wheel' },
+  { ago: 5200, name: 'Writing', note: 'cuneiform, Sumer', major: true },
+  { ago: 4600, name: 'Great Pyramid' },
+  { ago: 3200, name: 'Iron' },
+  { year: -776, name: 'First Olympics' },
+  { year: -430, name: 'Classical Athens' },
+  { year: 117, name: 'Rome at its greatest', major: true },
+  { year: 622, name: 'Islam begins' },
+  { year: 1000, name: 'Norse reach America' },
+  { year: 1450, name: 'Printing press', major: true },
+  { year: 1492, name: 'Columbus crosses' },
+  { year: 1780, name: 'Industrial Revolution', major: true },
+  { year: 1876, name: 'Telephone' },
+  { year: 1903, name: 'Powered flight' },
+  { year: 1945, name: 'Nuclear weapons' },
+  { year: 1969, name: 'Moon landing', major: true },
+  { year: 1990, name: 'World Wide Web' },
+  { year: 2007, name: 'Smartphone' },
+];
+
+/** Oldest first, every entry carrying `ago` in years. */
+export const HISTORY = EVENTS
+  .map((e) => ({ ...e, ago: e.ago ?? PRESENT_YEAR - e.year }))
+  .sort((a, b) => b.ago - a.ago);

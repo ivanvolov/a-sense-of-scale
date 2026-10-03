@@ -51,6 +51,7 @@ const MANIFEST = {
     { name: 'Earth & Moon', url: './#earth-moon' },
     { name: 'Solar System', url: './#solar-system' },
     { name: 'Powers of Ten', url: './#powers-of-ten' },
+    { name: 'Human History', url: './#deep-time' },
   ],
 };
 
