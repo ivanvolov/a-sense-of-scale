@@ -103,7 +103,7 @@ body {
   text-align: right;
   flex: 1 1 auto;
   min-width: 0;
-  max-width: min(62%, 680px);
+  max-width: min(72%, 820px);
 }
 /* The one readout that belongs on every mode, parked where nothing else is
    and where a thumb dragging the canvas will not cover it. It never takes
@@ -149,22 +149,35 @@ body {
   backdrop-filter: blur(10px);
   display: none;
 }
-/* Shrink to the readout rather than filling the column the description needs. */
-#clock.on { display: block; width: fit-content; margin-left: auto; }
+/* A fixed width, not a fitted one: the timer and the distance both change
+   width every frame, and a shrink-to-fit panel pinned to the right edge jitters
+   sideways on every tick. */
+#clock.on { display: block; width: min(330px, 78vw, 100%); margin-left: auto; }
 #clockHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
 }
 #clockTime {
   font-family: var(--mono);
-  font-size: 26px;
+  font-size: 27px;
   font-weight: 600;
   color: var(--cool);
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
-#clockLabel { font-size: 11px; color: var(--dim); text-align: left; }
+#clockMeta { text-align: right; line-height: 1.5; }
+#clockSpeed {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cool);
+}
+#clockTravel { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
 #clockArrivals {
   margin-top: 8px;
   font-family: var(--mono);
@@ -312,6 +325,10 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
 
 @media (max-width: 620px) {
   #worldHint { display: none; }
+  /* The readout needs more room than the strip beside the title, so it drops
+     onto its own line instead of overflowing the frame. */
+  #meta { flex-wrap: wrap; }
+  #topRight { flex: 1 1 100%; max-width: 100%; }
   #scaleValue { font-size: 16px; }
   #clockTime { font-size: 21px; }
   /* Both corners are at the bottom; on a narrow screen the buttons wrap far
@@ -337,8 +354,11 @@ button.chip.install:hover { color: #0b1120; background: var(--accent); }
       <div id="worldHint"></div>
       <div id="clock">
         <div id="clockHead">
-          <div id="clockLabel">since the pulse left</div>
           <div id="clockTime">0.00 s</div>
+          <div id="clockMeta">
+            <div id="clockSpeed">real time</div>
+            <div id="clockTravel">—</div>
+          </div>
         </div>
         <div id="clockArrivals"></div>
       </div>

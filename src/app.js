@@ -406,10 +406,8 @@ function updateHud() {
   el('clock').classList.toggle('on', showClock);
   if (showClock) {
     el('clockTime').textContent = clockFace(pulse.sim);
-    const travelled = `${lengthStr(C_LIGHT * pulse.sim)} travelled`;
-    el('clockLabel').textContent = pulse.speed === 1
-      ? `real time · ${travelled}`
-      : `time ×${pulse.speed} · ${travelled}`;
+    el('clockSpeed').textContent = pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`;
+    el('clockTravel').textContent = `${lengthStr(C_LIGHT * pulse.sim)} travelled`;
     el('clockArrivals').innerHTML = pulse.arrivals
       .map((a) => `reached <b>${a.name}</b> at ${duration(a.at)}`).join('<br>');
     labelLightButton();
