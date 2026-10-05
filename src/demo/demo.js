@@ -473,7 +473,11 @@ function flyTo(pos, target, dur = 1500) {
 function flyToBody(b) {
   const dir = camera.position.clone().sub(controls.target).normalize();
   if (dir.lengthSq() < 1e-6) dir.set(0, 0.2, 1).normalize();
-  const r = b.r * Math.max(b.size, 0.001);
+  // Aim at where the body is going, not where it is mid-tween, or a click
+  // during a layout change leaves the camera staring at empty space.
+  const dest = b.tween ? b.tween.to : b.pos;
+  const size = b.sizeTween ? b.sizeTween.to : b.size;
+  const r = b.r * Math.max(size, 0.001);
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const d = (r / Math.tan(vfov / 2)) * (b.name === 'Sun' ? 2.3 : 2.1);
   // Centre the body in the band between the columns, not behind a card.
@@ -481,7 +485,7 @@ function flyToBody(b) {
   const width = 2 * d * Math.tan(vfov / 2) * camera.aspect;
   const shift = ((f.W / 2 - (f.left + f.right) / 2) / f.W) * width;
   const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize().negate();
-  const target = b.pos.clone().add(right.multiplyScalar(shift));
+  const target = dest.clone().add(right.multiplyScalar(shift));
   flyTo(target.clone().add(dir.multiplyScalar(d)), target, 1500);
 }
 
