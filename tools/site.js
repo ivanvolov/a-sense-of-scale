@@ -9,7 +9,7 @@
 //   node tools/site.js
 //   node tools/site.js --base https://user.github.io/repo   # absolute og:image
 
-import { mkdir, writeFile, readdir, copyFile, readFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, readdir, copyFile, readFile, rm, cp } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,6 +128,9 @@ self.addEventListener('fetch', (e) => {
   }
 
   if (url.origin !== location.origin) return;
+  // The demo under ./demo/ is a separate page with its own assets; leave it
+  // to the network so its navigations never overwrite the app's cached shell.
+  if (url.pathname.startsWith(new URL('./demo/', self.registration.scope).pathname)) return;
 
   // The page itself: newest wins, but never fail because the network did.
   if (request.mode === 'navigate') {
@@ -179,6 +182,11 @@ await writeFile(path.join(DIST, '.nojekyll'), '');
 for (const file of await readdir(ASSETS)) {
   await copyFile(path.join(ASSETS, file), path.join(DIST, 'assets', file));
 }
+
+// The demo (src/demo/) ships as plain ES modules next to the two shared data
+// files it imports from the parent directory; nothing to bundle.
+await cp(path.join(ROOT, 'src/demo'), path.join(DIST, 'demo'), { recursive: true });
+for (const f of ['data.js', 'units.js']) await copyFile(path.join(ROOT, 'src', f), path.join(DIST, f));
 
 let total = 0;
 for (const dir of [DIST, path.join(DIST, 'assets')]) {

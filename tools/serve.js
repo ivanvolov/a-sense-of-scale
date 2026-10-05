@@ -15,10 +15,13 @@ const TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.woff2': 'font/woff2',
   '.json': 'application/json; charset=utf-8',
+  '.jpg': 'image/jpeg',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
 };
 
 function resolve(urlPath) {
-  const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
+  const rel = (urlPath.endsWith('/') ? `${urlPath}index.html` : urlPath).replace(/^\//, '');
   const abs = path.join(SRC, rel);
   // Never serve anything outside src/ through the generic branch.
   return abs.startsWith(SRC + path.sep) ? abs : null;

@@ -76,3 +76,13 @@ upload `dist/`.
 NASA/JPL Planetary Fact Sheets (radii, orbits), IAU 2012 (1 AU =
 149 597 870 700 m), CODATA (c = 299 792 458 m/s, exact by definition).
 Inter and JetBrains Mono, SIL OFL 1.1.
+
+## Demo (`/demo`)
+
+`src/demo/` is a second take on the first two modes: the same numbers from
+`data.js`, drawn in 3D (Three.js from a CDN, textured bodies from Solar System
+Scope, CC BY 4.0) behind a card UI. Earth & Moon toggles between side-by-side
+sizes and the true distance, lays the seven other planets into the gap, and
+keeps the Sun's limb at the right edge for size. Solar System switches between
+true scale and a compressed layout, and sends a light pulse from the Sun with
+the clock running honestly either way. The build copies it to `dist/demo/`.
