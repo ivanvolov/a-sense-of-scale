@@ -28,11 +28,19 @@ const canvas = el('stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(34, 1, 0.02, 2e7);
-camera.position.set(0, 1, 9);
+// Two cameras: the perspective one for looking around, an orthographic one
+// for the side-on size comparison, where perspective would lie about which
+// sphere is bigger. `camera` is whichever is in use.
+const persp = new THREE.PerspectiveCamera(34, 1, 0.02, 2e7);
+persp.position.set(0, 1, 9);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.02, 2e7);
+let camera = persp;
+let orthoW = 10;          // frustum width of the ortho camera, scene units
 
 const controls = new OrbitControls(camera, canvas);
 controls.enablePan = false;
@@ -41,34 +49,51 @@ controls.dampingFactor = 0.08;
 controls.rotateSpeed = 0.55;
 controls.minDistance = 0.3;
 controls.maxDistance = 6e6;
-controls.addEventListener('start', () => { camTween = null; follow = false; canvas.classList.add('dragging'); });
+controls.addEventListener('start', () => { camTween = null; if (follow) { follow = false; renderDock(); } canvas.classList.add('dragging'); });
 controls.addEventListener('end', () => canvas.classList.remove('dragging'));
 
-const hemi = new THREE.HemisphereLight(0xffffff, 0xd9dde6, 1.0);
+const hemi = new THREE.HemisphereLight(0xffffff, 0xd9dde6, 1.25);
 scene.add(hemi);
-const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.7);
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 2.3);
 sunLight.position.set(1, 0.35, 0.55);
 scene.add(sunLight);
 const sunPoint = new THREE.PointLight(0xfff1d6, 0, 0, 0);
 scene.add(sunPoint);
+// A cool rim from behind-left lifts the dark limb off the pale background.
+const rim = new THREE.DirectionalLight(0xdbe8ff, 0.7);
+rim.position.set(-0.8, 0.5, -1);
+scene.add(rim);
+// Sun direction in view space, for the Earth's night lights.
+const uSun = { value: new THREE.Vector3(1, 0, 0) };
 
 // ------------------------------------------------------------ textures -----
 
 // Textures live next to this file; a host that cannot serve them (the Vercel
 // preview) points elsewhere with <html data-tex="https://…/tex/">.
 const TEX_BASE = document.documentElement.dataset.tex || './tex/';
-const manager = new THREE.LoadingManager(() => el('loading').classList.add('off'));
-const loader = new THREE.TextureLoader(manager);
-const texCache = new Map();
-function tex(name, srgb = true) {
-  if (!texCache.has(name)) {
-    const t = loader.load(`${TEX_BASE}${name}`);
-    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    texCache.set(name, t);
+// The 2k set loads first and lifts the curtain; 4k versions of the hero
+// bodies stream in behind it and swap into the materials as they land.
+const pendingHi = [];
+const manager = new THREE.LoadingManager(() => {
+  el('loading').classList.add('off');
+  for (const { mat, slot, name, srgb } of pendingHi) {
+    loadTex(name, srgb, null, (t) => { mat[slot] = t; mat.needsUpdate = true; });
   }
+});
+const loader = new THREE.TextureLoader(manager);
+const hiLoader = new THREE.TextureLoader();
+const texCache = new Map();
+function loadTex(name, srgb, ldr, onLoad) {
+  const t = (ldr ?? hiLoader).load(`${TEX_BASE}${name}`, onLoad);
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+function tex(name, srgb = true) {
+  if (!texCache.has(name)) texCache.set(name, loadTex(name, srgb, loader));
   return texCache.get(name);
 }
+const hi = (mat, slot, name, srgb = true) => { if (name) pendingHi.push({ mat, slot, name, srgb }); };
 
 function coronaTexture() {
   const c = document.createElement('canvas');
@@ -132,12 +157,32 @@ function makeBody(name, rMetres, color) {
     corona.scale.setScalar(2.5);
     corona.renderOrder = -2;
     group.add(corona);
-  } else if (f.specular) {
-    mesh = new THREE.Mesh(SPHERE, new THREE.MeshPhongMaterial({
-      map: tex(f.tex), specularMap: tex(f.specular, false), specular: new THREE.Color('#4a5a70'), shininess: 22,
-    }));
+    hi(mesh.material, 'map', f.hi);
+  } else if (f.normal) {
+    // Earth: relief, glossy oceans, and city lights that only show at night.
+    const m = new THREE.MeshStandardMaterial({
+      map: tex(f.tex), normalMap: tex(f.normal, false), normalScale: new THREE.Vector2(0.7, 0.7),
+      roughnessMap: tex(f.rough, false), roughness: 1, metalness: 0.02,
+      emissiveMap: tex(f.night), emissive: new THREE.Color('#ffd49a'), emissiveIntensity: 1.1,
+    });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uSun = uSun;
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uSun;')
+        .replace('#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\n'
+          + 'totalEmissiveRadiance *= 1.0 - smoothstep(-0.12, 0.22, dot(normalize(vNormal), normalize(uSun)));');
+    };
+    mesh = new THREE.Mesh(SPHERE, m);
+    hi(m, 'map', f.hi);
+    hi(m, 'normalMap', f.hiNormal, false);
+    hi(m, 'roughnessMap', f.hiRough, false);
   } else {
-    mesh = new THREE.Mesh(SPHERE, new THREE.MeshStandardMaterial({ map: tex(f.tex), roughness: 0.92, metalness: 0 }));
+    const m = new THREE.MeshStandardMaterial({ map: tex(f.tex), roughness: 0.92, metalness: 0 });
+    if (f.bump) { m.bumpMap = tex(f.tex); m.bumpScale = f.bump; }
+    mesh = new THREE.Mesh(SPHERE, m);
+    hi(m, 'map', f.hi);
+    if (f.bump && f.hi) hi(m, 'bumpMap', f.hi);
   }
   spin.add(mesh);
 
@@ -224,11 +269,10 @@ const MODES = {
       const bodies = SIZE_BODIES.map(([n, r, c]) => makeBody(n, r, c));
       return { bodies, origin: bodies[0], targets: [] };
     },
-    tools: () => [],
   },
 
   'solar-system': {
-    title: 'Solar System',
+    title: 'Distances',
     multi: false,
     variants: [['compressed', 'Compressed'], ['true', 'True scale']],
     speeds: [60, 600, 3600, 1],
@@ -263,17 +307,6 @@ const MODES = {
       });
       return { center: new THREE.Vector3(0, 0, 0), width: RN * 2.25, el: 52, az: 12 };
     },
-    tools: () => [
-      { id: 'scale', ic: '⇔', cls: 't', label: () => (state.variant === 'true' ? 'Compress the distances' : 'Back to true scale'),
-        small: 'True scale makes the planets dots. Compressed pulls them in and inflates them so you can see them.',
-        run: () => setVariant(state.variant === 'true' ? 'compressed' : 'true') },
-      { id: 'light', ic: '⚡', cls: 'v', label: () => (pulse.sim > 0 ? 'Replay the light pulse' : 'Send a light pulse'),
-        small: 'From the Sun outward. Eight minutes to Earth, four hours to Neptune.', run: startPulse },
-      { id: 'speed', ic: '◷', cls: '', label: () => (pulse.speed === 1 ? 'Time ×1 (real)' : `Time ×${pulse.speed}`),
-        small: 'How fast the clock runs while the light travels.', run: cycleSpeed },
-      { id: 'follow', ic: '◎', cls: '', label: () => (follow ? 'Camera follows the light' : 'Camera stays put'),
-        small: 'Pull back as the pulse grows, so the front is always in view.', on: () => follow, run: () => { follow = !follow; renderTools(); } },
-    ],
   },
 };
 
@@ -323,9 +356,10 @@ function setMode(id, variant) {
 
   // Lighting: a Sun off to the right in the size row, a Sun at the centre of
   // the solar scene.
-  sunLight.intensity = def.multi ? 1.7 : 0.3;
-  sunPoint.intensity = def.multi ? 0 : 2.4;
-  hemi.intensity = def.multi ? 1.0 : 0.95;
+  sunLight.intensity = def.multi ? 2.3 : 0.35;
+  sunPoint.intensity = def.multi ? 0 : 3.2;
+  hemi.intensity = def.multi ? 1.25 : 1.15;
+  if (side) setSide(false, true);
 
   resetPulse();
   pulse.speed = def.speeds[0];
@@ -346,7 +380,6 @@ function setMode(id, variant) {
   history.replaceState(null, '', `#${id}`);
   renderList();
   renderDock();
-  renderTools();
   renderDots();
   renderOverview();
 }
@@ -366,8 +399,6 @@ function setVariant(v, instant = false) {
   const frame = MODES[state.mode].layout(v);
   flyFrame(frame, instant ? 0 : 1600);
   renderDock();
-  renderTools();
-  renderNote();
 }
 
 // ------------------------------------------------------------ size row -----
@@ -386,7 +417,7 @@ function layoutSizes(instant = false) {
   let prev = null;
   const place = new Map();
   for (const b of row) {
-    if (prev) x += 0.28 * Math.max(prev.ext, b.ext) + 0.25;
+    if (prev) x += 0.12 * Math.max(prev.ext, b.ext) + 0.12;
     x += b.ext;
     place.set(b, x);
     x += b.ext;
@@ -428,7 +459,62 @@ function layoutSizes(instant = false) {
 
   const width = Math.max(right - left, 4) * 1.08;
   const center = new THREE.Vector3((left + right) / 2, (sun && !row.length ? 0 : 0.05), 0);
-  flyFrame({ center, width, el: 6 }, instant ? 0 : 1500);
+  flyFrame({ center, width, el: side ? 0 : 6 }, instant ? 0 : 1500);
+}
+
+// ------------------------------------------------------------ side view ----
+
+let side = false;        // orthographic, straight along the row
+let switchAt = null;     // swap cameras once the fly-in has landed
+
+/**
+ * Side view: fly the perspective camera straight in front of the row, then
+ * hand over to the orthographic one at the same framing, so nothing jumps
+ * except the perspective itself.
+ */
+function setSide(on, instant = false) {
+  if (on === side) return;
+  side = on;
+  if (on) {
+    if (state.frame) flyFrame(state.frame, instant ? 0 : 1200);
+    if (instant) toOrtho(); else switchAt = camTween;
+  } else {
+    switchAt = null;
+    toPersp();
+    if (state.frame) flyFrame(state.frame, instant ? 0 : 1200);
+  }
+  renderDock();
+}
+
+function toOrtho() {
+  const dist = persp.position.distanceTo(controls.target);
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  orthoW = 2 * dist * Math.tan(vfov / 2) * persp.aspect;
+  ortho.zoom = 1;
+  ortho.position.copy(persp.position);
+  ortho.quaternion.copy(persp.quaternion);
+  camera = ortho;
+  controls.object = ortho;
+  fitOrtho();
+}
+
+function toPersp() {
+  if (camera !== ortho) return;
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  const dir = ortho.position.clone().sub(controls.target).normalize();
+  const d = ((orthoW / ortho.zoom) / 2) / (Math.tan(vfov / 2) * persp.aspect);
+  persp.position.copy(controls.target).add(dir.multiplyScalar(d));
+  persp.quaternion.copy(ortho.quaternion);
+  camera = persp;
+  controls.object = persp;
+}
+
+function fitOrtho() {
+  ortho.left = -orthoW / 2;
+  ortho.right = orthoW / 2;
+  ortho.top = orthoW / (2 * persp.aspect);
+  ortho.bottom = -ortho.top;
+  ortho.updateProjectionMatrix();
 }
 
 function togglePick(b) {
@@ -450,8 +536,8 @@ function setPicked(names) {
 
 /** Camera distance that fits `width` scene units across the viewport. */
 function distanceFor(width) {
-  const vfov = THREE.MathUtils.degToRad(camera.fov);
-  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * persp.aspect);
   return (width / 2) / Math.tan(hfov / 2);
 }
 
@@ -465,6 +551,7 @@ function freeArea() {
 }
 
 function flyFrame({ center, width, el: elev = 10, az = 0 }, dur = 1500) {
+  state.frame = { center, width, el: elev, az };
   // Fit `width` into the open band between the columns and aim the camera so
   // the scene centres in that band rather than behind a card.
   const f = freeArea();
@@ -478,6 +565,12 @@ function flyFrame({ center, width, el: elev = 10, az = 0 }, dur = 1500) {
   const target = center.clone().add(right.multiplyScalar(shift));
   const pos = new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).multiplyScalar(d).add(target);
   flyTo(pos, target, dur);
+  if (camera === ortho) {
+    camTween = camTween ?? { p0: pos.clone(), p1: pos.clone(), t0: target.clone(), t1: target.clone(), start: now(), dur: 1 };
+    camTween.w0 = orthoW / ortho.zoom;
+    camTween.w1 = fullWidth;
+    if (dur <= 0) { orthoW = fullWidth; ortho.zoom = 1; fitOrtho(); camTween = null; }
+  }
 }
 
 function flyTo(pos, target, dur = 1500) {
@@ -499,11 +592,11 @@ function flyToBody(b) {
   const dest = b.tween ? b.tween.to : b.pos;
   const size = b.sizeTween ? b.sizeTween.to : b.size;
   const r = b.r * Math.max(size, 0.001);
-  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
   const d = (r / Math.tan(vfov / 2)) * (b.name === 'Sun' ? 2.3 : 2.1);
   // Centre the body in the band between the columns, not behind a card.
   const f = freeArea();
-  const width = 2 * d * Math.tan(vfov / 2) * camera.aspect;
+  const width = 2 * d * Math.tan(vfov / 2) * persp.aspect;
   const shift = ((f.W / 2 - (f.left + f.right) / 2) / f.W) * width;
   const right = new THREE.Vector3().crossVectors(dir, camera.up).normalize().negate();
   const target = dest.clone().add(right.multiplyScalar(shift));
@@ -541,7 +634,6 @@ function startPulse() {
   pulse.next = 0;
   pulse.mesh.visible = pulse.ring.visible = true;
   follow = true;
-  renderTools();
   renderDock();
   renderOverview();
 }
@@ -557,7 +649,6 @@ function resetPulse() {
 function cycleSpeed() {
   const speeds = MODES[state.mode].speeds;
   pulse.speed = speeds[(speeds.indexOf(pulse.speed) + 1) % speeds.length];
-  renderTools();
   renderDock();
   renderOverview();
 }
@@ -641,21 +732,6 @@ function renderList() {
   }
 }
 
-function renderTools() {
-  const ul = el('toolList');
-  ul.innerHTML = '';
-  for (const t of MODES[state.mode].tools()) {
-    const li = document.createElement('li');
-    const on = typeof t.on === 'function' ? t.on() : false;
-    if (on) li.classList.add('on');
-    const label = typeof t.label === 'function' ? t.label() : t.label;
-    const small = typeof t.small === 'function' ? t.small() : t.small;
-    li.innerHTML = `<span class="ic ${t.cls}">${t.ic}</span><span><b>${label}</b><small>${small}</small></span><span class="chev">›</span>`;
-    li.onclick = t.run;
-    ul.append(li);
-  }
-}
-
 function renderDock() {
   const dock = el('dock');
   dock.innerHTML = '';
@@ -678,6 +754,8 @@ function renderDock() {
     add('Everything', same(PRESETS.all), () => setPicked(PRESETS.all));
     sep();
     add('Clear', false, () => setPicked([]));
+    sep();
+    add('<i>▭</i>Side view', side, () => setSide(!side), 'tog').title = 'Straight along the row, no perspective';
     return;
   }
   for (const [v, label] of def.variants) add(label, v === state.variant, () => setVariant(v));
@@ -687,6 +765,8 @@ function renderDock() {
     const sp = add(pulse.speed === 1 ? '×1' : `×${pulse.speed}`, false, cycleSpeed);
     sp.title = 'Time multiplier';
   }
+  const fl = add('<i>◎</i>Follow light', follow, () => { follow = !follow; renderDock(); }, 'tog');
+  fl.title = 'Pull the camera back as the pulse grows';
 }
 
 function renderDots() {
@@ -755,16 +835,6 @@ function tickClock() {
   el('clockMeta').innerHTML = `<b>${pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`}</b> · ${lengthStr(C_LIGHT * pulse.sim)} travelled`;
 }
 
-function renderNote() {
-  const note = el('scaleNote');
-  if (state.variant === 'compressed') {
-    note.textContent = 'distances compressed (d^0.42) · sizes enlarged · the light clock stays honest';
-    note.classList.add('on');
-  } else {
-    note.classList.remove('on');
-  }
-}
-
 // -------------------------------------------------------- per-frame ---------
 
 const _v = new THREE.Vector3();
@@ -789,8 +859,10 @@ function placeLabels(w, h, t) {
     return;
   }
   refreshBlocked(t);
-  const vfov = THREE.MathUtils.degToRad(camera.fov);
-  const pxPerUnitAt = (dist) => (h / 2) / (dist * Math.tan(vfov / 2));
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  const pxPerUnitAt = (dist) => (camera === ortho
+    ? h / ((ortho.top - ortho.bottom) / ortho.zoom)
+    : (h / 2) / (dist * Math.tan(vfov / 2)));
   const want = [];
   for (const b of state.bodies) {
     const r = b.r * b.size;
@@ -839,8 +911,9 @@ function frame() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    persp.aspect = w / h;
+    persp.updateProjectionMatrix();
+    fitOrtho();
   }
 
   for (const b of state.bodies) {
@@ -876,7 +949,16 @@ function frame() {
     const k = ease(clamp((t - camTween.start) / camTween.dur, 0, 1));
     camera.position.lerpVectors(camTween.p0, camTween.p1, k);
     controls.target.lerpVectors(camTween.t0, camTween.t1, k);
-    if (k >= 1) camTween = null;
+    if (camTween.w1 != null && camera === ortho) {
+      orthoW = THREE.MathUtils.lerp(camTween.w0, camTween.w1, k);
+      ortho.zoom = 1;
+      fitOrtho();
+    }
+    if (k >= 1) {
+      const done = camTween;
+      camTween = null;
+      if (switchAt === done) { switchAt = null; toOrtho(); }
+    }
   } else if (follow && pulse.on && !MODES[state.mode].multi) {
     // Keep the front of the pulse at about 40 % of the frame width.
     const r = pulse.mesh.scale.x;
@@ -892,6 +974,13 @@ function frame() {
   // The labels project through the camera's world matrix; refresh it now, or
   // they are placed with last frame's camera and trail behind a drag.
   camera.updateMatrixWorld(true);
+  {
+    const earth = state.bodies.find((b) => b.name === 'Earth');
+    const dir = MODES[state.mode].multi || !earth
+      ? sunLight.position.clone()
+      : state.origin.pos.clone().sub(earth.pos);
+    uSun.value.copy(dir.normalize().transformDirection(camera.matrixWorldInverse));
+  }
   placeLabels(w, h, t);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -933,6 +1022,6 @@ requestAnimationFrame(frame);
 
 // Handy for the screenshot tool and the console.
 window.__demo = {
-  setMode, setVariant, select, startPulse, setPicked, togglePick, pulseRadius, compress, U,
-  state, pulse, camera, controls, flyToBody,
+  setMode, setVariant, select, startPulse, setPicked, togglePick, setSide, pulseRadius, compress, U,
+  state, pulse, controls, flyToBody, get camera() { return camera; },
 };

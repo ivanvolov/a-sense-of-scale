@@ -22,6 +22,7 @@ const SHOTS = [
   ['sizes-home', 'earth-moon', null, null, [], 2500],
   ['sizes-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], [], 2800],
   ['sizes-everything', 'earth-moon', null, 'all', [], 2800],
+  ['sizes-side', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], ['side', 1500], 2500],
   ['sizes-sun', 'earth-moon', null, ['Sun'], [], 2500],
   ['sizes-earth-moon', 'earth-moon', null, ['Earth', 'Moon'], [], 2500],
   ['ss-compressed', 'solar-system', 'compressed', null, [], 2500],
@@ -43,6 +44,8 @@ page.on('console', (m) => { if (m.type() === 'error') console.log('CONSOLE', m.t
 
 await page.goto(`${url}demo/#earth-moon`);
 await page.waitForFunction(() => window.__demo && document.getElementById('loading').classList.contains('off'), null, { timeout: 60000 });
+// Let the 4k textures stream in before shooting.
+await page.waitForTimeout(9000);
 
 for (const [name, mode, variant, body, steps, settle] of SHOTS) {
   if (only && name !== only) continue;
@@ -55,7 +58,7 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
   }, { mode, variant, body });
   await page.waitForTimeout(1800);
   for (const s of steps) {
-    if (s === 'gap') await page.evaluate(() => window.__demo.toggleGap());
+    if (s === 'side') await page.evaluate(() => window.__demo.setSide(true));
     else if (s === 'light') await page.evaluate(() => window.__demo.startPulse());
     else if (typeof s === 'number') await page.waitForTimeout(s);
   }

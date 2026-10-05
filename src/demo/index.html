@@ -156,43 +156,17 @@ body {
   gap: 12px;
   padding: 16px 18px;
 }
-#brand .mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: 2px solid var(--teal);
-  display: grid;
-  place-items: center;
-  position: relative;
-}
-#brand .mark::before {
-  content: '';
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--teal);
-}
-#brand .mark::after {
-  content: '';
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--orange);
-  top: -3px;
-  right: 1px;
-}
+#brand .mark { flex: none; width: 38px; height: 38px; }
 #brand h1 {
   margin: 0;
   font-family: var(--display);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14.5px;
   letter-spacing: .14em;
   white-space: nowrap;
   text-transform: uppercase;
   color: var(--teal);
 }
-#brand .eyebrow { margin-top: 3px; font-size: 9px; white-space: nowrap; }
 
 #list {
   grid-column: 1;
@@ -375,6 +349,8 @@ body {
 #dock button:hover { background: rgba(29, 34, 48, .05); }
 #dock button.on { background: var(--teal); color: #fff; box-shadow: 0 8px 20px -8px rgba(23, 165, 137, .7); }
 #dock button.go { background: var(--orange); color: #fff; }
+#dock button.tog { color: var(--dim); }
+#dock button.tog.on { background: var(--teal-soft); color: var(--teal-ink); box-shadow: none; }
 #dock button.go:hover { background: #e38a3a; }
 #dock button i { font-style: normal; font-size: 14px; }
 #dock .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
@@ -425,16 +401,6 @@ body {
   cursor: pointer;
 }
 #modes button.on { background: var(--teal-soft); color: var(--teal-ink); }
-#modes .badge {
-  flex: none;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--orange);
-  border: 1px solid rgba(240, 154, 75, .5);
-  border-radius: 999px;
-  padding: 3px 8px;
-  margin: 0 4px;
-}
 
 #side {
   grid-column: 3;
@@ -481,7 +447,7 @@ body {
 .row2 .bar.warm i.on { background: var(--orange); }
 
 /* Sizes mode: no head text, no tools, no dots; the overview is the table. */
-body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
+body.sizes #head, body.sizes #dots { display: none; }
 #overview .hint { margin-top: 10px; font-size: 12.5px; color: var(--dim); line-height: 1.5; }
 .cmp {
   display: grid;
@@ -519,36 +485,6 @@ body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
 #clockArrivals li.next { opacity: .45; }
 #clockArrivals li.next span { color: var(--dim); }
 
-#tools { flex: none; }
-#tools ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-#tools li {
-  display: grid;
-  grid-template-columns: 38px 1fr 16px;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 6px 10px 2px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background .2s;
-}
-#tools li:hover { background: rgba(29, 34, 48, .04); }
-#tools li.on .ic { background: var(--teal); color: #fff; }
-#tools li.off { opacity: .4; pointer-events: none; }
-#tools .ic {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  background: var(--orange-soft);
-  color: #c9772a;
-}
-#tools .ic.v { background: rgba(93, 85, 214, .14); color: var(--violet); }
-#tools .ic.t { background: var(--teal-soft); color: var(--teal-ink); }
-#tools b { display: block; font-family: var(--display); font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; }
-#tools small { display: block; color: var(--dim); font-size: 11.5px; line-height: 1.4; margin-top: 2px; }
-#tools .chev { color: var(--faint); font-size: 14px; }
 
 #tip {
   flex: none;
@@ -574,24 +510,6 @@ body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
 }
 #tip button { margin-left: auto; appearance: none; border: 0; background: transparent; color: var(--faint); font-size: 16px; cursor: pointer; }
 
-#scaleNote {
-  position: fixed;
-  left: 50%;
-  top: 18px;
-  transform: translateX(-50%);
-  z-index: 3;
-  pointer-events: none;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--dim);
-  letter-spacing: .04em;
-  background: rgba(255, 255, 255, .7);
-  padding: 5px 10px;
-  border-radius: 999px;
-  opacity: 0;
-  transition: opacity .3s;
-}
-#scaleNote.on { opacity: 1; }
 
 #loading {
   position: fixed;
@@ -619,7 +537,7 @@ body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
     gap: 10px;
     padding: 10px;
   }
-  #brand, #list, #modes, #side, #dots, #scaleNote { display: none; }
+  #brand, #list, #modes, #side, #dots { display: none; }
   #head { grid-column: 1; grid-row: 1; }
   #dock { grid-column: 1; grid-row: 4; }
 }
@@ -629,15 +547,18 @@ body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
 
 <canvas id="stage"></canvas>
 <div id="labels"></div>
-<div id="scaleNote"></div>
 
 <div id="ui">
   <div id="brand" class="card">
-    <div class="mark"></div>
-    <div>
-      <h1>A Sense of Scale</h1>
-      <div class="eyebrow">True sizes · true distances</div>
-    </div>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="11" fill="none" stroke="#f09a4b" stroke-width="1.6"/>
+      <circle cx="32" cy="32" r="19" fill="none" stroke="#17a589" stroke-width="1.3" opacity=".85"/>
+      <circle cx="32" cy="32" r="27" fill="none" stroke="#17a589" stroke-width="1" opacity=".4"/>
+      <circle cx="32" cy="32" r="4.6" fill="#f09a4b"/>
+      <circle cx="45.4" cy="18.6" r="2.4" fill="#17a589"/>
+      <circle cx="12.4" cy="44.5" r="1.7" fill="#5d55d6"/>
+    </svg>
+    <h1>A Sense of Scale</h1>
   </div>
 
   <div id="list" class="card"></div>
@@ -654,18 +575,13 @@ body.sizes #head, body.sizes #tools, body.sizes #dots { display: none; }
 
   <div id="modes" class="card">
     <button data-mode="earth-moon" class="on">Sizes</button>
-    <button data-mode="solar-system">Solar System</button>
-    <span class="badge">demo</span>
+    <button data-mode="solar-system">Distances</button>
   </div>
 
   <div id="side">
     <div id="overview" class="card">
       <div class="eyebrow" id="overviewTitle">Overview</div>
       <div id="rows"></div>
-    </div>
-    <div id="tools" class="card">
-      <div class="eyebrow">Tools</div>
-      <ul id="toolList"></ul>
     </div>
     <div id="tip" class="card">
       <span class="ic">i</span>
