@@ -1,15 +1,18 @@
-// The demo: the first two modes of the explorer, rebuilt as a 3D scene with
-// textured bodies and a card UI. Same numbers as the main app (../data.js),
-// same honesty about scale, different clothes.
+// The demo: two 3D scenes behind a card UI. Same numbers as the main app
+// (../data.js), same honesty about scale, different clothes.
 //
-// Scene unit: one Earth radius. Everything is positioned in real proportion
-// unless the "compressed" variant of the Solar System is on, which says so.
+//   Sizes          pick bodies on the left; they line up at true relative size,
+//                  with the Sun's limb at the right edge when it is picked.
+//   Solar System   distances: orbits, a light pulse, a clock; true scale or a
+//                  compressed layout that says so.
+//
+// Scene unit: one Earth radius.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EARTH, MOON, SUN, MOON_ORBIT, OTHER_PLANETS, PLANETS, PLANETS_TOTAL_D, AU, C_LIGHT, gap } from '../data.js';
+import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT } from '../data.js';
 import { lengthStr, lightTime, clockFace } from '../units.js';
-import { FACTS, ROWS } from './facts.js';
+import { FACTS } from './facts.js';
 
 const ER = EARTH.r;
 const U = (metres) => metres / ER;
@@ -17,6 +20,7 @@ const el = (id) => document.getElementById(id);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const now = () => performance.now();
+const fmt = (v, d = 2) => v.toLocaleString('en-US', { maximumFractionDigits: d });
 
 // ------------------------------------------------------------ renderer -----
 
@@ -40,9 +44,9 @@ controls.maxDistance = 6e6;
 controls.addEventListener('start', () => { camTween = null; follow = false; canvas.classList.add('dragging'); });
 controls.addEventListener('end', () => canvas.classList.remove('dragging'));
 
-const hemi = new THREE.HemisphereLight(0xffffff, 0xd9dde6, 0.55);
+const hemi = new THREE.HemisphereLight(0xffffff, 0xd9dde6, 1.0);
 scene.add(hemi);
-const sunLight = new THREE.DirectionalLight(0xfff4e0, 2.2);
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.7);
 sunLight.position.set(1, 0.35, 0.55);
 scene.add(sunLight);
 const sunPoint = new THREE.PointLight(0xfff1d6, 0, 0, 0);
@@ -174,16 +178,17 @@ function makeBody(name, rMetres, color) {
 
   const label = document.createElement('div');
   label.className = 'label' + (name === 'Sun' || name === 'Earth' ? ' cool' : '');
-  label.innerHTML = `<b>${name}</b><small></small>`;
+  label.innerHTML = `<b>${name}</b>`;
   const marker = document.createElement('div');
   marker.className = 'marker';
   marker.style.background = color;
   el('labels').append(marker, label);
 
   return {
-    name, r, rTrue: r, color, facts: f, group, spin, label, marker,
+    name, r, color, facts: f, group, spin, label, marker,
+    // Horizontal half-extent: Saturn's rings need room in a row.
+    ext: f.ring ? r * f.ring.outer : r,
     pos: new THREE.Vector3(), tween: null, size: 1, sizeTween: null, shown: true,
-    lines: '',
   };
 }
 
@@ -196,71 +201,36 @@ function tweenSize(b, size, dur = 1200, delay = 0) {
 
 // --------------------------------------------------------------- modes -----
 
+const SIZE_BODIES = [
+  ['Sun', SUN.r, SUN.color],
+  ...PLANETS.slice(0, 3).map((p) => [p.name, p.r, p.color]),
+  ['Moon', MOON.r, MOON.color],
+  ...PLANETS.slice(3).map((p) => [p.name, p.r, p.color]),
+];
+
+const PRESETS = {
+  home: ['Earth', 'Moon', 'Sun'],
+  planets: PLANETS.map((p) => p.name),
+  all: SIZE_BODIES.map((b) => b[0]),
+};
+
 const MODES = {
   'earth-moon': {
-    title: 'Earth & Moon',
-    variants: [['size', 'Size'], ['distance', 'Distance']],
+    title: 'Sizes',
+    multi: true,
+    variants: [],
     speeds: [1],
     build() {
-      const bodies = [
-        makeBody('Earth', EARTH.r, EARTH.color),
-        makeBody('Moon', MOON.r, MOON.color),
-        makeBody('Sun', SUN.r, SUN.color),
-      ];
-      const gapBodies = OTHER_PLANETS.map((p) => {
-        const b = makeBody(p.name, p.d / 2, p.color);
-        b.shown = false;
-        b.size = 0;
-        return b;
-      });
-      return { bodies, gapBodies, origin: bodies[0], targets: [{ name: 'Moon', d: MOON_ORBIT.mean }] };
+      const bodies = SIZE_BODIES.map(([n, r, c]) => makeBody(n, r, c));
+      return { bodies, origin: bodies[0], targets: [] };
     },
-    lines(b) {
-      if (b.name === 'Moon') return `${lengthStr(MOON_ORBIT.mean)} from Earth<br>${lightTime(MOON_ORBIT.mean)} of light`;
-      if (b.name === 'Sun') return `Shown for size only<br>${Math.round(SUN.r / EARTH.r)} Earths across`;
-      if (b.name === 'Earth') return `The unit: 1 Earth radius`;
-      return `⌀ ${lengthStr(b.rTrue * ER * 2)}`;
-    },
-    chips(b) {
-      if (b.name === 'Moon') return [['⌀', lengthStr(MOON.d)], ['↔', `${lengthStr(MOON_ORBIT.mean)} away`], ['⚡', lightTime(MOON_ORBIT.mean)]];
-      if (b.name === 'Sun') return [['⌀', lengthStr(SUN.d)], ['⊕', `${Math.round(SUN.r / EARTH.r)} × Earth`], ['⚡', `${lightTime(AU)} to Earth`]];
-      return [['⌀', lengthStr(EARTH.d)], ['↓', '1 g'], ['◌', '1 moon']];
-    },
-    layout(v) {
-      const [earth, moon, sun] = state.bodies;
-      const g = state.gapBodies;
-      if (v === 'size') {
-        tweenTo(earth, new THREE.Vector3(0, 0, 0));
-        tweenTo(moon, new THREE.Vector3(1 + moon.r + 0.62, 0, 0));
-        tweenTo(sun, new THREE.Vector3(1 + moon.r * 2 + 0.62 + 1.6 + sun.r, 0, 0));
-        for (const b of g) { if (b.shown) tweenSize(b, 0, 600); b.shown = false; }
-        state.gapOn = false;
-        return { center: new THREE.Vector3(1.3, 0.05, 0), width: 6.2, el: 7 };
-      }
-      const moonX = U(MOON_ORBIT.mean);
-      tweenTo(earth, new THREE.Vector3(0, 0, 0));
-      tweenTo(moon, new THREE.Vector3(moonX, 0, 0));
-      tweenTo(sun, new THREE.Vector3(moonX + moon.r + 3.2 + sun.r, 0, 0));
-      return { center: new THREE.Vector3(moonX / 2 + 1.5, 0.6, 0), width: moonX + 12, el: 7 };
-    },
-    tools: () => [
-      { id: 'view', ic: '⇔', cls: 't', label: () => (state.variant === 'size' ? 'Show the distance' : 'Show the sizes'),
-        small: 'Side by side, or thirty Earths apart as they really are.',
-        run: () => setVariant(state.variant === 'size' ? 'distance' : 'size') },
-      { id: 'gap', ic: '◍', cls: '', label: () => (state.gapOn ? 'Clear the gap' : 'Fill the gap with planets'),
-        small: () => `The other seven, end to end. They overshoot by ${lengthStr(PLANETS_TOTAL_D - gap(MOON_ORBIT.mean))}.`,
-        on: () => state.gapOn, run: toggleGap },
-      { id: 'light', ic: '⚡', cls: 'v', label: () => (pulse.sim > 0 ? 'Replay the light pulse' : 'Send a light pulse'),
-        small: 'From Earth to the Moon at the real speed of light: 1.28 s.', run: startPulse },
-      { id: 'sun', ic: '☀', cls: '', label: () => (state.sunOn ? 'Hide the Sun' : 'Show the Sun'),
-        small: 'Its limb waits at the right edge, in true proportion.', on: () => state.sunOn, run: toggleSun },
-    ],
-    speedLabel: null,
+    tools: () => [],
   },
 
   'solar-system': {
     title: 'Solar System',
-    variants: [['true', 'True scale'], ['compressed', 'Compressed']],
+    multi: false,
+    variants: [['compressed', 'Compressed'], ['true', 'True scale']],
     speeds: [60, 600, 3600, 1],
     build() {
       const bodies = [makeBody('Sun', SUN.r, SUN.color), ...PLANETS.map((p) => makeBody(p.name, p.r, p.color))];
@@ -272,22 +242,12 @@ const MODES = {
         }
         const line = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints(pts),
-          new THREE.LineBasicMaterial({ color: 0x6f7786, transparent: true, opacity: 0.42 }),
+          new THREE.LineBasicMaterial({ color: 0xaab1be }),
         );
         line.userData.a = U(p.a);
         return line;
       });
-      return { bodies, gapBodies: [], orbits, origin: bodies[0], targets: PLANETS.map((p) => ({ name: p.name, d: p.a })) };
-    },
-    lines(b) {
-      if (b.name === 'Sun') return `⌀ ${lengthStr(SUN.d)}`;
-      const p = PLANETS.find((q) => q.name === b.name);
-      return `${(p.a / AU).toFixed(2)} AU from the Sun<br>${lightTime(p.a)} of light`;
-    },
-    chips(b) {
-      if (b.name === 'Sun') return [['⌀', lengthStr(SUN.d)], ['⊕', `${Math.round(SUN.r / EARTH.r)} × Earth`], ['⚡', `${lightTime(PLANETS[7].a)} to Neptune`]];
-      const p = PLANETS.find((q) => q.name === b.name);
-      return [['⌀', lengthStr(p.r * 2)], ['☉', `${(p.a / AU).toFixed(2)} AU`], ['⚡', lightTime(p.a)]];
+      return { bodies, orbits, origin: bodies[0], targets: PLANETS.map((p) => ({ name: p.name, d: p.a })) };
     },
     layout(v) {
       const [sun, ...planets] = state.bodies;
@@ -320,6 +280,8 @@ const MODES = {
 // Compressed variant of the solar system: orbit radii follow a power law
 // (Mercury lands at 16 % of Neptune instead of 1.3 %), and the bodies are
 // inflated to a fixed fraction of Neptune's orbit so they read on screen.
+// The light pulse goes through the same mapping, so it still reaches each
+// planet at the real moment.
 const COMP_P = 0.42;
 const compress = (d) => {
   const RN = U(PLANETS[7].a);
@@ -333,8 +295,8 @@ const COMP_SIZE = {
 // --------------------------------------------------------------- state -----
 
 const state = {
-  mode: null, variant: null, bodies: [], gapBodies: [], orbits: [], root: null,
-  selected: null, gapOn: false, sunOn: true, origin: null, targets: [],
+  mode: null, variant: null, bodies: [], orbits: [], root: null,
+  selected: null, picked: new Set(), origin: null, targets: [],
 };
 const pulse = { on: false, sim: 0, speed: 1, arrivals: [], next: 0, mesh: null, ring: null };
 let camTween = null;
@@ -346,38 +308,39 @@ function setMode(id, variant) {
   if (!def) return;
   if (state.root) {
     scene.remove(state.root);
-    for (const b of [...state.bodies, ...state.gapBodies]) { b.label.remove(); b.marker.remove(); }
+    for (const b of state.bodies) { b.label.remove(); b.marker.remove(); }
   }
   state.mode = id;
   const built = def.build();
-  Object.assign(state, built, { root: new THREE.Group(), gapOn: false, selected: null });
-  for (const b of [...state.bodies, ...state.gapBodies]) {
+  Object.assign(state, built, { root: new THREE.Group(), selected: null, orbits: built.orbits ?? [] });
+  for (const b of state.bodies) {
     state.root.add(b.group);
-    b.lines = def.lines(b);
-    b.label.querySelector('small').innerHTML = b.lines;
     b.group.position.copy(b.pos);
   }
-  for (const o of state.orbits ?? []) state.root.add(o);
-  if (!built.orbits) state.orbits = [];
+  for (const o of state.orbits) state.root.add(o);
   scene.add(state.root);
+  document.body.classList.toggle('sizes', !!def.multi);
 
-  // Lighting: a Sun off to the right in the Earth scene, a Sun at the centre
-  // of the solar one.
-  sunLight.intensity = id === 'earth-moon' ? 1.7 : 0.3;
-  sunPoint.intensity = id === 'solar-system' ? 2.4 : 0;
-  hemi.intensity = id === 'earth-moon' ? 1.0 : 0.95;
+  // Lighting: a Sun off to the right in the size row, a Sun at the centre of
+  // the solar scene.
+  sunLight.intensity = def.multi ? 1.7 : 0.3;
+  sunPoint.intensity = def.multi ? 0 : 2.4;
+  hemi.intensity = def.multi ? 1.0 : 0.95;
 
   resetPulse();
   pulse.speed = def.speeds[0];
-  follow = id === 'solar-system';
+  follow = !def.multi;
   state.variant = null;
-  setVariant(variant ?? def.variants[0][0], true);
-  for (const b of [...state.bodies, ...state.gapBodies]) {
-    if (b.tween) { b.pos.copy(b.tween.to); b.tween = null; }
-    if (b.sizeTween) { b.size = b.sizeTween.to; b.sizeTween = null; }
+
+  if (def.multi) {
+    state.picked = new Set(PRESETS.home);
+    for (const b of state.bodies) { b.shown = false; b.size = 0; }
+    layoutSizes(true);
+  } else {
+    setVariant(variant ?? def.variants[0][0], true);
+    select(state.bodies[0], true);
   }
-  if (camTween) { camera.position.copy(camTween.p1); controls.target.copy(camTween.t1); camTween = null; }
-  select(state.bodies[0], true);
+  settle();
 
   for (const btn of el('modes').querySelectorAll('button')) btn.classList.toggle('on', btn.dataset.mode === id);
   history.replaceState(null, '', `#${id}`);
@@ -385,10 +348,20 @@ function setMode(id, variant) {
   renderDock();
   renderTools();
   renderDots();
+  renderOverview();
+}
+
+/** Finish every tween at once — for the first frame of a mode. */
+function settle() {
+  for (const b of state.bodies) {
+    if (b.tween) { b.pos.copy(b.tween.to); b.tween = null; }
+    if (b.sizeTween) { b.size = b.sizeTween.to; b.sizeTween = null; }
+  }
+  if (camTween) { camera.position.copy(camTween.p1); controls.target.copy(camTween.t1); camTween = null; }
 }
 
 function setVariant(v, instant = false) {
-  if (v === state.variant) return;
+  if (v === state.variant || !MODES[state.mode].layout) return;
   state.variant = v;
   const frame = MODES[state.mode].layout(v);
   flyFrame(frame, instant ? 0 : 1600);
@@ -397,32 +370,80 @@ function setVariant(v, instant = false) {
   renderNote();
 }
 
-function toggleGap() {
-  if (state.mode !== 'earth-moon') return;
-  if (state.variant !== 'distance') setVariant('distance');
-  state.gapOn = !state.gapOn;
-  let cursor = 1; // Earth's surface, in Earth radii
-  state.gapBodies.forEach((b, i) => {
-    const x = cursor + b.r;
-    cursor += b.r * 2;
-    b.shown = state.gapOn;
-    if (state.gapOn) {
-      b.pos.set(x, 6 + b.r * 2, 0);
-      tweenTo(b, new THREE.Vector3(x, 0, 0), 1100, 350 + i * 110);
-      tweenSize(b, 1, 900, 350 + i * 110);
+// ------------------------------------------------------------ size row -----
+
+/**
+ * Lay the picked bodies in a row, smallest to largest, at true relative size.
+ * The Sun, when picked, stands past the right end so only its limb is in
+ * frame — unless it is the only thing picked, in which case it is the frame.
+ */
+function layoutSizes(instant = false) {
+  const picked = state.bodies.filter((b) => state.picked.has(b.name));
+  const row = picked.filter((b) => b.name !== 'Sun').sort((a, b) => a.r - b.r);
+  const sun = picked.find((b) => b.name === 'Sun');
+
+  let x = 0;
+  let prev = null;
+  const place = new Map();
+  for (const b of row) {
+    if (prev) x += 0.28 * Math.max(prev.ext, b.ext) + 0.25;
+    x += b.ext;
+    place.set(b, x);
+    x += b.ext;
+    prev = b;
+  }
+  const rowW = x;
+  let left = row.length ? -0.4 : 0;
+  let right = row.length ? rowW + 0.4 : 0;
+  if (sun) {
+    if (row.length) {
+      const limb = rowW + Math.max(0.7, rowW * 0.08);
+      place.set(sun, limb + sun.r);
+      right = limb + Math.max(1.1, rowW * 0.14);
     } else {
-      tweenTo(b, new THREE.Vector3(x, -6 - b.r * 2, 0), 900, i * 60);
-      tweenSize(b, 0, 700, i * 60);
+      place.set(sun, 0);
+      left = -sun.r * 1.15;
+      right = sun.r * 1.15;
     }
-  });
-  renderTools();
+  }
+
+  for (const b of state.bodies) {
+    const target = place.get(b);
+    if (target != null) {
+      if (!b.shown) {
+        // New arrival: drop in from above, or just swell up when it is the Sun.
+        const dropFrom = b.name === 'Sun' ? 0 : 3 + b.r * 2.5;
+        b.pos.set(target, dropFrom, 0);
+        b.size = 0;
+      }
+      tweenTo(b, new THREE.Vector3(target, 0, 0), instant ? 0.001 : 1300);
+      tweenSize(b, 1, instant ? 0.001 : 1000);
+      b.shown = true;
+    } else if (b.shown) {
+      tweenTo(b, new THREE.Vector3(b.pos.x, b.name === 'Sun' ? 0 : -(3 + b.r * 2.5), 0), 900);
+      tweenSize(b, 0, 700);
+      b.shown = false;
+    }
+  }
+
+  const width = Math.max(right - left, 4) * 1.08;
+  const center = new THREE.Vector3((left + right) / 2, (sun && !row.length ? 0 : 0.05), 0);
+  flyFrame({ center, width, el: 6 }, instant ? 0 : 1500);
 }
 
-function toggleSun() {
-  state.sunOn = !state.sunOn;
-  const sun = state.bodies.find((b) => b.name === 'Sun');
-  tweenSize(sun, state.sunOn ? 1 : 0, 900);
-  renderTools();
+function togglePick(b) {
+  if (state.picked.has(b.name)) state.picked.delete(b.name);
+  else state.picked.add(b.name);
+  layoutSizes();
+  renderList();
+  renderOverview();
+}
+
+function setPicked(names) {
+  state.picked = new Set(names);
+  layoutSizes();
+  renderList();
+  renderOverview();
 }
 
 // -------------------------------------------------------------- camera -----
@@ -500,7 +521,7 @@ function ensurePulse() {
   const pts = [];
   for (let i = 0; i <= 256; i++) {
     const a = (i / 256) * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a), Math.sin(a), 0));
+    pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
   }
   pulse.ring = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
@@ -512,16 +533,17 @@ function ensurePulse() {
 }
 
 function startPulse() {
-  if (state.mode === 'earth-moon' && state.variant !== 'distance') setVariant('distance');
+  if (MODES[state.mode].multi) return;
   ensurePulse();
   pulse.on = true;
   pulse.sim = 0;
   pulse.arrivals = [];
   pulse.next = 0;
   pulse.mesh.visible = pulse.ring.visible = true;
-  if (state.mode === 'solar-system') follow = true;
+  follow = true;
   renderTools();
   renderDock();
+  renderOverview();
 }
 
 function resetPulse() {
@@ -530,7 +552,6 @@ function resetPulse() {
   pulse.arrivals = [];
   pulse.next = 0;
   if (pulse.mesh) pulse.mesh.visible = pulse.ring.visible = false;
-  renderClock();
 }
 
 function cycleSpeed() {
@@ -538,6 +559,7 @@ function cycleSpeed() {
   pulse.speed = speeds[(speeds.indexOf(pulse.speed) + 1) % speeds.length];
   renderTools();
   renderDock();
+  renderOverview();
 }
 
 function tickPulse(dt) {
@@ -545,27 +567,32 @@ function tickPulse(dt) {
   pulse.sim += dt * pulse.speed;
   const metres = C_LIGHT * pulse.sim;
   const targets = state.targets;
+  let arrived = false;
   while (pulse.next < targets.length && metres >= targets[pulse.next].d) {
     const t = targets[pulse.next];
     pulse.arrivals.push({ name: t.name, at: t.d / C_LIGHT });
     pulse.next++;
+    arrived = true;
   }
+  if (arrived) renderOverview();
   const last = targets[targets.length - 1].d;
-  if (metres > last * 1.35) pulse.on = false;
+  if (metres > last * 1.35) { pulse.on = false; renderOverview(); }
+}
+
+/** Pulse radius in scene units — through the same mapping as the planets. */
+function pulseRadius() {
+  const r = U(C_LIGHT * pulse.sim);
+  return state.variant === 'compressed' ? compress(r) : r;
 }
 
 function placePulse() {
   if (!pulse.mesh || !pulse.mesh.visible) return;
-  const metres = C_LIGHT * pulse.sim;
-  let r = U(metres);
-  if (state.mode === 'solar-system' && state.variant === 'compressed') r = compress(r);
+  const r = Math.max(pulseRadius(), 1e-4);
   const origin = state.origin.pos;
   pulse.mesh.position.copy(origin);
   pulse.ring.position.copy(origin);
-  pulse.mesh.scale.setScalar(Math.max(r, 1e-4));
-  pulse.ring.scale.setScalar(Math.max(r, 1e-4));
-  if (state.mode === 'solar-system') pulse.ring.rotation.set(Math.PI / 2, 0, 0);
-  else pulse.ring.rotation.set(0, 0, 0);
+  pulse.mesh.scale.setScalar(r);
+  pulse.ring.scale.setScalar(r);
   const fade = pulse.on ? 1 : 0.35;
   pulse.mesh.material.opacity = 0.09 * fade;
   pulse.ring.material.opacity = 0.9 * fade;
@@ -574,16 +601,18 @@ function placePulse() {
 // ----------------------------------------------------------------- UI ------
 
 function select(b, instant = false) {
+  if (MODES[state.mode].multi) { togglePick(b); return; }
   if (state.selected === b && !instant) { flyToBody(b); return; }
   state.selected = b;
   const head = el('head');
   const fill = () => {
     el('titleText').textContent = b.name;
-    el('epithet').textContent = b.facts.epithet;
-    el('blurb').textContent = b.facts.blurb;
-    el('chips').innerHTML = MODES[state.mode].chips(b)
-      .map(([ic, text]) => `<span class="chip"><i>${ic}</i>${text}</span>`).join('');
-    renderRows(b);
+    const p = PLANETS.find((q) => q.name === b.name);
+    el('epithet').textContent = p
+      ? `${(p.a / AU).toFixed(2)} AU from the Sun · light takes ${lightTime(p.a)}`
+      : `${lengthStr(SUN.d)} across · light reaches Neptune in ${lightTime(PLANETS[7].a)}`;
+    el('blurb').textContent = '';
+    el('chips').innerHTML = '';
   };
   if (instant) fill();
   else {
@@ -598,44 +627,17 @@ function select(b, instant = false) {
 function renderList() {
   const list = el('list');
   list.innerHTML = '';
+  const multi = MODES[state.mode].multi;
   for (const b of state.bodies) {
     const btn = document.createElement('button');
-    btn.className = 'body' + (b === state.selected ? ' on' : '');
+    const on = multi ? state.picked.has(b.name) : b === state.selected;
+    btn.className = 'body' + (on ? ' on' : '');
     btn.dataset.name = b.name;
     btn.innerHTML = `<span class="thumb${b.facts.ring ? ' ringed' : ''}" style="background-image:url(${TEX_BASE}${b.facts.tex})"></span>`
-      + `<span><b>${b.name}</b><small>${b.facts.epithet}</small></span><span class="tag">Selected</span>`;
+      + `<span><b>${b.name}</b><small>${multi ? `⌀ ${lengthStr(b.r * ER * 2)}` : b.facts.epithet}</small></span>`
+      + `<span class="tag">${multi ? 'Shown' : 'Selected'}</span>`;
     btn.onclick = () => select(b);
     list.append(btn);
-  }
-}
-
-const LOG_RANGE = {};
-for (const row of ROWS) {
-  if (!row.log) continue;
-  const vals = Object.values(FACTS).map((f) => f[row.key]).filter((v) => v != null && v > 0).map(Math.log10);
-  LOG_RANGE[row.key] = [Math.min(...vals), Math.max(...vals)];
-}
-
-function renderRows(b) {
-  const rows = el('rows');
-  rows.innerHTML = '';
-  for (const row of ROWS) {
-    const v = b.facts[row.key];
-    if (v == null) continue;
-    let k;
-    if (row.log) {
-      const [lo, hi] = LOG_RANGE[row.key];
-      k = (Math.log10(Math.max(v, 1e-9)) - lo) / (hi - lo);
-    } else {
-      const [lo, hi] = row.lin;
-      k = (v - lo) / (hi - lo);
-    }
-    const n = clamp(Math.round(1 + 9 * k), 1, 10);
-    const div = document.createElement('div');
-    div.className = 'row2';
-    div.innerHTML = `<span class="ic">${row.icon}</span><span class="lb">${row.label}</span><span class="vl">${row.fmt(v)}</span>`
-      + `<span class="bar${row.key === 'temp' && v > 100 ? ' warm' : ''}">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? 'on' : ''}" style="transition-delay:${i * 40}ms"></i>`).join('')}</span>`;
-    rows.append(div);
   }
 }
 
@@ -657,33 +659,40 @@ function renderTools() {
 function renderDock() {
   const dock = el('dock');
   dock.innerHTML = '';
-  for (const [v, label] of MODES[state.mode].variants) {
+  const def = MODES[state.mode];
+  const add = (label, on, run, cls = '') => {
     const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.classList.toggle('on', v === state.variant);
-    btn.onclick = () => setVariant(v);
+    btn.innerHTML = label;
+    btn.className = cls;
+    btn.classList.toggle('on', on);
+    btn.onclick = run;
     dock.append(btn);
+    return btn;
+  };
+  const sep = () => { const s = document.createElement('span'); s.className = 'sep'; dock.append(s); };
+
+  if (def.multi) {
+    const same = (names) => names.length === state.picked.size && names.every((n) => state.picked.has(n));
+    add('Earth · Moon · Sun', same(PRESETS.home), () => setPicked(PRESETS.home));
+    add('The planets', same(PRESETS.planets), () => setPicked(PRESETS.planets));
+    add('Everything', same(PRESETS.all), () => setPicked(PRESETS.all));
+    sep();
+    add('Clear', false, () => setPicked([]));
+    return;
   }
-  const sep = document.createElement('span');
-  sep.className = 'sep';
-  dock.append(sep);
-  const light = document.createElement('button');
-  light.className = 'go';
-  light.innerHTML = `<i>⚡</i>${pulse.sim > 0 ? 'Replay' : 'Send light'}`;
-  light.onclick = startPulse;
-  dock.append(light);
-  if (MODES[state.mode].speeds.length > 1) {
-    const sp = document.createElement('button');
-    sp.textContent = pulse.speed === 1 ? '×1' : `×${pulse.speed}`;
+  for (const [v, label] of def.variants) add(label, v === state.variant, () => setVariant(v));
+  sep();
+  add(`<i>⚡</i>${pulse.sim > 0 ? 'Replay' : 'Send light'}`, false, startPulse, 'go');
+  if (def.speeds.length > 1) {
+    const sp = add(pulse.speed === 1 ? '×1' : `×${pulse.speed}`, false, cycleSpeed);
     sp.title = 'Time multiplier';
-    sp.onclick = cycleSpeed;
-    dock.append(sp);
   }
 }
 
 function renderDots() {
   const dots = el('dots');
   dots.innerHTML = '';
+  if (MODES[state.mode].multi) return;
   for (const b of state.bodies) {
     const i = document.createElement('i');
     i.classList.toggle('on', b === state.selected);
@@ -692,20 +701,63 @@ function renderDots() {
   }
 }
 
-function renderClock() {
-  const show = pulse.on || pulse.sim > 0;
+/** The right-hand card: a size table in Sizes, the light clock in Solar System. */
+function renderOverview() {
+  const rows = el('rows');
+  if (MODES[state.mode].multi) {
+    el('overviewTitle').textContent = 'Diameters';
+    const picked = state.bodies.filter((b) => state.picked.has(b.name)).sort((a, b) => b.r - a.r);
+    if (!picked.length) {
+      rows.innerHTML = '<div class="hint">Pick bodies on the left. They line up at true relative size.</div>';
+      return;
+    }
+    const big = picked[0].r;
+    rows.innerHTML = picked.map((b) => {
+      const f = b.facts;
+      const d = b.r * ER * 2;
+      const xe = b.r / U(EARTH.r);
+      const day = f.day >= 48 ? `${(f.day / 24).toFixed(f.day / 24 < 10 ? 1 : 0)} d` : `${f.day} h`;
+      const mass = f.mass >= 1000 ? `${Math.round(f.mass / 1000)} 000 ⊕` : `${fmt(f.mass, 3)} ⊕`;
+      return `<div class="cmp">
+        <span class="thumb" style="background-image:url(${TEX_BASE}${f.tex})"></span>
+        <span><b>${b.name}</b><small>${mass} · spins in ${day}</small></span>
+        <span class="num"><b>${lengthStr(d)}</b><small>${xe >= 1 ? fmt(xe, xe >= 10 ? 1 : 2) : fmt(xe, 3)} × Earth</small></span>
+        <span class="scale" style="transform:scaleX(${Math.max(b.r / big, 0.004)})"></span>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  el('overviewTitle').textContent = 'Light clock';
+  const started = pulse.on || pulse.sim > 0;
+  if (!rows.querySelector('#clockTime')) {
+    rows.innerHTML = '<div id="clockTime"></div><div id="clockMeta"></div><div id="clockBarWrap"><i id="clockBar"></i></div><ul id="clockArrivals"></ul>';
+  }
   el('clockTime').textContent = clockFace(pulse.sim);
-  el('clockSpeed').textContent = pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`;
-  el('clockTravel').textContent = show ? `${lengthStr(C_LIGHT * pulse.sim)} travelled` : 'Send a pulse to start';
-  const last = state.targets?.length ? state.targets[state.targets.length - 1].d : 1;
+  el('clockMeta').innerHTML = started
+    ? `<b>${pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`}</b> · ${lengthStr(C_LIGHT * pulse.sim)} travelled`
+    : `<b>${pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`}</b> · send a pulse from the Sun to start`;
+  const last = state.targets[state.targets.length - 1].d;
   el('clockBar').style.width = `${clamp((C_LIGHT * pulse.sim) / last, 0, 1) * 100}%`;
-  el('clockArrivals').innerHTML = pulse.arrivals.slice(-4)
-    .map((a) => `<li><b>${a.name}</b><span>${clockFace(a.at)}</span></li>`).join('');
+  const next = state.targets[pulse.next];
+  el('clockArrivals').innerHTML = pulse.arrivals.map((a) => `<li><b>${a.name}</b><span>${clockFace(a.at)}</span></li>`).join('')
+    + (started && next ? `<li class="next"><b>${next.name}</b><span>${clockFace(next.d / C_LIGHT)}</span></li>` : '');
+}
+
+/** Cheap per-frame refresh of the clock numbers while the pulse runs. */
+function tickClock() {
+  if (MODES[state.mode].multi || !(pulse.on || pulse.sim > 0)) return;
+  const t = el('clockTime');
+  if (!t) return;
+  t.textContent = clockFace(pulse.sim);
+  const last = state.targets[state.targets.length - 1].d;
+  el('clockBar').style.width = `${clamp((C_LIGHT * pulse.sim) / last, 0, 1) * 100}%`;
+  el('clockMeta').innerHTML = `<b>${pulse.speed === 1 ? 'real time' : `time ×${pulse.speed}`}</b> · ${lengthStr(C_LIGHT * pulse.sim)} travelled`;
 }
 
 function renderNote() {
   const note = el('scaleNote');
-  if (state.mode === 'solar-system' && state.variant === 'compressed') {
+  if (state.variant === 'compressed') {
     note.textContent = 'distances compressed (d^0.42) · sizes enlarged · the light clock stays honest';
     note.classList.add('on');
   } else {
@@ -725,21 +777,24 @@ function refreshBlocked(t) {
   if (t - blockedAt < 1000) return;
   blockedAt = t;
   blocked = [
-    ...['brand', 'list', 'clock', 'modes', 'side', 'dock'].map((id) => el(id)),
+    ...['brand', 'list', 'modes', 'side', 'dock'].map((id) => el(id)),
     ...el('head').children,
   ].map((n) => n.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
 }
 const inRect = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
 function placeLabels(w, h, t) {
+  if (MODES[state.mode].multi) {
+    for (const b of state.bodies) { b.label.style.opacity = 0; b.marker.style.display = 'none'; }
+    return;
+  }
   refreshBlocked(t);
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const pxPerUnitAt = (dist) => (h / 2) / (dist * Math.tan(vfov / 2));
   const want = [];
-  for (const b of [...state.bodies, ...state.gapBodies]) {
+  for (const b of state.bodies) {
     const r = b.r * b.size;
-    const hidden = b.size < 0.02 || (!b.shown && state.gapBodies.includes(b));
-    if (hidden) { b.label.style.opacity = 0; b.marker.style.display = 'none'; continue; }
+    if (b.size < 0.02) { b.label.style.opacity = 0; b.marker.style.display = 'none'; continue; }
     const dist = camera.position.distanceTo(b.pos);
     const px = r * pxPerUnitAt(dist);
     _v.copy(b.pos).project(camera);
@@ -749,12 +804,13 @@ function placeLabels(w, h, t) {
     const onScreen = !behind && x > -40 && x < w + 40 && y > -40 && y < h + 40;
     const tiny = px < 1.6;
     const covered = blocked.some((rc) => inRect(x, y, rc));
-    b.marker.style.display = onScreen && tiny && !covered ? 'block' : 'none';
-    if (onScreen && tiny) { b.marker.style.left = `${x}px`; b.marker.style.top = `${y}px`; }
+    const showMarker = onScreen && tiny && !covered;
+    b.marker.style.display = showMarker ? 'block' : 'none';
+    if (showMarker) b.marker.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
     // Too big to label without the text landing on the texture — the title does the job.
     const huge = px > h * 0.6;
     if (onScreen && !huge && !covered) {
-      const lift = tiny ? 20 : Math.min(px, h) + 10;
+      const lift = tiny ? 20 : Math.min(px, h) + 8;
       want.push({ b, x, y: y - lift, px, sel: b === state.selected });
     } else {
       b.label.style.opacity = 0;
@@ -765,14 +821,13 @@ function placeLabels(w, h, t) {
   want.sort((p, q) => (q.sel - p.sel) || (q.px - p.px));
   const placed = [];
   for (const p of want) {
-    const box = { left: p.x - 72, right: p.x + 72, top: p.y - 46, bottom: p.y + 4 };
+    const box = { left: p.x - 44, right: p.x + 44, top: p.y - 22, bottom: p.y + 4 };
     const clash = placed.some((o) => !(box.right < o.left || box.left > o.right || box.bottom < o.top || box.top > o.bottom))
       || blocked.some((rc) => !(box.right < rc.left || box.left > rc.right || box.bottom < rc.top || box.top > rc.bottom));
     if (clash) { p.b.label.style.opacity = 0; continue; }
     placed.push(box);
     p.b.label.style.opacity = 1;
-    p.b.label.style.left = `${p.x}px`;
-    p.b.label.style.top = `${p.y}px`;
+    p.b.label.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -100%)`;
   }
 }
 
@@ -788,7 +843,7 @@ function frame() {
     camera.updateProjectionMatrix();
   }
 
-  for (const b of [...state.bodies, ...state.gapBodies]) {
+  for (const b of state.bodies) {
     if (b.tween) {
       const k = clamp((t - b.tween.t0) / b.tween.dur, 0, 1);
       b.pos.lerpVectors(b.tween.from, b.tween.to, ease(k));
@@ -815,14 +870,14 @@ function frame() {
 
   tickPulse(dt);
   placePulse();
-  if (pulse.on || pulse.sim > 0) renderClock();
+  tickClock();
 
   if (camTween) {
     const k = ease(clamp((t - camTween.start) / camTween.dur, 0, 1));
     camera.position.lerpVectors(camTween.p0, camTween.p1, k);
     controls.target.lerpVectors(camTween.t0, camTween.t1, k);
     if (k >= 1) camTween = null;
-  } else if (follow && pulse.on && state.mode === 'solar-system') {
+  } else if (follow && pulse.on && !MODES[state.mode].multi) {
     // Keep the front of the pulse at about 40 % of the frame width.
     const r = pulse.mesh.scale.x;
     const want = Math.max(distanceFor(Math.max(r * 2 / 0.4, U(PLANETS[0].a) * 2.5)), controls.minDistance);
@@ -834,6 +889,9 @@ function frame() {
   }
   controls.update();
 
+  // The labels project through the camera's world matrix; refresh it now, or
+  // they are placed with last frame's camera and trail behind a drag.
+  camera.updateMatrixWorld(true);
   placeLabels(w, h, t);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -845,6 +903,11 @@ for (const btn of el('modes').querySelectorAll('button')) btn.onclick = () => se
 el('tipClose').onclick = () => { el('tip').style.display = 'none'; };
 
 addEventListener('keydown', (e) => {
+  if (MODES[state.mode].multi) {
+    if (e.key === '1') setMode('earth-moon');
+    else if (e.key === '2') setMode('solar-system');
+    return;
+  }
   if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
     const i = state.bodies.indexOf(state.selected);
     const n = state.bodies.length;
@@ -869,4 +932,7 @@ setMode(MODES[location.hash.slice(1)] ? location.hash.slice(1) : 'earth-moon');
 requestAnimationFrame(frame);
 
 // Handy for the screenshot tool and the console.
-window.__demo = { setMode, setVariant, select, startPulse, toggleGap, state, pulse, camera, controls, flyToBody };
+window.__demo = {
+  setMode, setVariant, select, startPulse, setPicked, togglePick, pulseRadius, compress, U,
+  state, pulse, camera, controls, flyToBody,
+};

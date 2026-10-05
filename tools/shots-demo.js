@@ -17,19 +17,17 @@ const opt = (k, d) => { const i = argv.indexOf(k); return i > -1 ? argv[i + 1] :
 const only = opt('--only', null);
 const [W, H] = opt('--size', '1512x857').split('x').map(Number);
 
-// name, mode, variant, selected body, extra steps, settle ms
+// name, mode, variant, selected body (solar) or picked names (sizes), extra steps, settle ms
 const SHOTS = [
-  ['em-size', 'earth-moon', 'size', 'Earth', [], 2500],
-  ['em-size-moon', 'earth-moon', 'size', 'Moon', [], 2500],
-  ['em-distance', 'earth-moon', 'distance', null, [], 2500],
-  ['em-gap', 'earth-moon', 'distance', null, ['gap'], 3200],
-  ['em-sun', 'earth-moon', 'size', 'Sun', [], 2500],
-  ['em-light', 'earth-moon', 'distance', null, ['light', 700], 900],
-  ['ss-true', 'solar-system', 'true', null, [], 2500],
-  ['ss-true-earth', 'solar-system', 'true', 'Earth', [], 2500],
-  ['ss-true-saturn', 'solar-system', 'true', 'Saturn', [], 2500],
+  ['sizes-home', 'earth-moon', null, null, [], 2500],
+  ['sizes-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], [], 2800],
+  ['sizes-everything', 'earth-moon', null, 'all', [], 2800],
+  ['sizes-sun', 'earth-moon', null, ['Sun'], [], 2500],
+  ['sizes-earth-moon', 'earth-moon', null, ['Earth', 'Moon'], [], 2500],
   ['ss-compressed', 'solar-system', 'compressed', null, [], 2500],
   ['ss-compressed-light', 'solar-system', 'compressed', null, ['light', 9000], 500],
+  ['ss-true', 'solar-system', 'true', null, [], 2500],
+  ['ss-true-earth', 'solar-system', 'true', 'Earth', [], 2500],
   ['ss-true-light', 'solar-system', 'true', null, ['light', 6000], 500],
 ];
 
@@ -51,7 +49,9 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
   await page.evaluate(({ mode, variant, body }) => {
     const d = window.__demo;
     d.setMode(mode, variant);
-    if (body) d.select(d.state.bodies.find((b) => b.name === body));
+    if (Array.isArray(body)) d.setPicked(body);
+    else if (body === 'all') d.setPicked(d.state.bodies.map((b) => b.name));
+    else if (body) d.select(d.state.bodies.find((b) => b.name === body));
   }, { mode, variant, body });
   await page.waitForTimeout(1800);
   for (const s of steps) {
@@ -63,6 +63,20 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
   await page.screenshot({ path: path.join(OUT, `${name}.png`) });
   console.log('shot', name);
 }
+
+// The compressed layout must put the pulse front on each planet at the real
+// arrival time: same mapping both ways.
+const check = await page.evaluate(() => {
+  const d = window.__demo;
+  d.setMode('solar-system', 'compressed');
+  return d.state.targets.map((t) => {
+    d.pulse.sim = t.d / 299792458;
+    const body = d.state.bodies.find((b) => b.name === t.name);
+    const planet = body.tween ? body.tween.to.length() : body.pos.length();
+    return `${t.name}: pulse ${d.pulseRadius().toFixed(1)} vs planet ${planet.toFixed(1)}`;
+  });
+});
+console.log('compressed pulse check:\n  ' + check.join('\n  '));
 
 await browser.close();
 server.close();
