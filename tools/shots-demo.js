@@ -19,6 +19,9 @@ const [W, H] = opt('--size', '1512x857').split('x').map(Number);
 
 // name, mode, variant, selected body (solar) or picked names (sizes), extra steps, settle ms
 const SHOTS = [
+  ['g-em-bh', 'earth-moon', null, ['Earth', 'Moon', 'Sagittarius A*'], ['dark'], 2800],
+  ['g-ems', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['dark'], 2800],
+  ['g-esb', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], ['dark'], 2800],
   ['moon', 'earth-moon', null, ['Moon'], [], 2500],
   ['moon-dark', 'earth-moon', null, ['Moon'], ['dark'], 2500],
   ['moon-zoom', 'earth-moon', null, ['Moon'], [['zoom', 'Moon'], 2200], 1500],

@@ -108,77 +108,37 @@ const stars = (() => {
 })();
 
 
-// Dark theme only: a spacetime grid under the row of globes, dipping into a
-// well under each one (depth and width follow the radius).
-const WELLS = 6;
-const fabric = (() => {
-  const geo = new THREE.PlaneGeometry(2, 2, 240, 240);
-  geo.rotateX(-Math.PI / 2);
+// Dark theme only: a grid far behind everything that bends round the biggest
+// body on screen like light past a mass. It works at any scale mix, which a
+// grid lying on a floor with a well under each globe cannot.
+const lensGrid = (() => {
   const mat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false,
-    uniforms: { uWells: { value: Array.from({ length: WELLS }, () => new THREE.Vector4()) }, uBase: { value: 0 }, uSize: { value: 1 }, uCell: { value: 1 } },
-    vertexShader: `
-      #include <common>
-      #include <logdepthbuf_pars_vertex>
-      uniform vec4 uWells[${WELLS}]; uniform float uBase; uniform float uSize;
-      varying vec2 vXZ; varying float vDip;
-      void main() {
-        vec3 p = position * uSize;
-        float dip = 0.0;
-        for (int i = 0; i < ${WELLS}; i++) {
-          vec4 w = uWells[i];
-          if (w.w <= 0.0) continue;
-          float d = length(p.xz - w.xz);
-          dip += w.w * 1.6 / sqrt(1.0 + pow(d / (w.w * 1.2), 2.0));
-        }
-        vXZ = p.xz; vDip = dip;
-        p.y = uBase - dip;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
-        #include <logdepthbuf_vertex>
-      }`,
+    // Not 'transparent': that would draw it after the globes, over them.
+    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    transparent: false, depthTest: false, depthWrite: false,
+    uniforms: { uC: { value: new THREE.Vector2() }, uR: { value: 100 }, uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: 56 } },
+    vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.9999, 1.0); }',
     fragmentShader: `
-      #include <common>
-      #include <logdepthbuf_pars_fragment>
-      uniform float uCell; uniform float uSize;
-      varying vec2 vXZ; varying float vDip;
+      uniform vec2 uC; uniform float uR; uniform vec2 uRes; uniform float uCell;
       void main() {
-        #include <logdepthbuf_fragment>
-        vec2 g = vXZ / uCell;
-        vec2 fw = fwidth(g) + 1e-5;
+        vec2 p = gl_FragCoord.xy, d = p - uC;
+        float r = max(length(d), 1e-3);
+        float rs = max(r - 0.6 * uR * uR / r, 0.0);
+        vec2 g = (uC + d * (rs / r)) / uCell;
+        vec2 fw = fwidth(g) + 1e-4;
         vec2 l = abs(fract(g - 0.5) - 0.5) / fw;
-        float line = 1.0 - clamp(min(l.x, l.y) - 0.4, 0.0, 1.0);
-        float edge = 1.0 - smoothstep(0.25, 1.0, length(vXZ) / uSize);
-        float a = line * edge * (0.12 + 0.45 * clamp(vDip / (uCell * 2.0), 0.0, 1.0));
+        float line = 1.0 - clamp(min(l.x, l.y) - 0.5, 0.0, 1.0);
+        float near = exp(-max(r - uR, 0.0) / (0.7 * uR));
+        float vig = 1.0 - smoothstep(0.35, 0.95, length(p / uRes - 0.5) * 1.5);
+        float a = line * vig * (0.10 + 0.5 * near) * smoothstep(0.55 * uR, 1.0 * uR, r);
         gl_FragColor = vec4(0.30, 0.85, 0.72, a);
       }`,
   });
-  const m = new THREE.Mesh(geo, mat);
-  m.frustumCulled = false; m.visible = false; m.renderOrder = -5;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  m.frustumCulled = false; m.visible = false; m.renderOrder = -20;
   scene.add(m);
   return m;
 })();
-function updateFabric() {
-  const on = theme === 'dark' && MODES[state.mode].multi && !state.side;
-  fabric.visible = on;
-  if (!on) return;
-  const wells = fabric.material.uniforms.uWells.value;
-  const list = state.bodies.filter((b) => b.shown && b.r * b.size < 20 && !b.facts.kind).sort((a, b) => b.r - a.r).slice(0, WELLS);
-  if (!list.length) { fabric.visible = false; return; }
-  let low = Infinity, reach = 0;
-  wells.forEach((w, i) => {
-    const b = list[i];
-    if (!b) { w.set(0, 0, 0, 0); return; }
-    const r = b.r * b.size;
-    w.set(b.pos.x, b.pos.y, b.pos.z, r);
-    low = Math.min(low, b.pos.y - r * 1.15);
-    reach = Math.max(reach, Math.abs(b.pos.x) + r);
-  });
-  const u = fabric.material.uniforms;
-  u.uBase.value = low;
-  u.uCell.value = Math.max(0.25, list[0].r * list[0].size * 0.45);
-  u.uSize.value = Math.max(30, reach * 2.5);
-}
 
 // ---------------------------------------------------------------- theme ----
 
@@ -653,6 +613,7 @@ function setMode(id, variant) {
 
   if (def.multi) {
     state.picked = new Set(PRESETS.home);
+    state.last = PRESETS.home[PRESETS.home.length - 1];
     for (const b of state.bodies) { b.shown = false; b.size = 0; }
     layoutSizes(true);
     setTip('Drag to orbit, scroll to zoom. The magnifier on a body flies you in on it.');
@@ -843,6 +804,7 @@ function fitOrtho() {
 function togglePick(b) {
   if (state.picked.has(b.name)) state.picked.delete(b.name);
   else state.picked.add(b.name);
+  state.last = state.picked.has(b.name) ? b.name : [...state.picked].pop() ?? null;
   layoutSizes();
   renderList();
   renderDock();
@@ -851,6 +813,7 @@ function togglePick(b) {
 
 function setPicked(names) {
   state.picked = new Set(names);
+  state.last = names[names.length - 1] ?? null;
   layoutSizes();
   renderList();
   renderDock();
@@ -1294,36 +1257,56 @@ const inRect = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.
 const reticle = (() => {
   const d = document.createElement('div');
   d.id = 'reticle';
-  const ticks = Array.from({ length: 72 }, (_, i) => {
-    const a = (i / 72) * Math.PI * 2, big = i % 6 === 0, r0 = big ? 90 : 93, r1 = 97;
-    return `<line x1="${Math.cos(a) * r0}" y1="${Math.sin(a) * r0}" x2="${Math.cos(a) * r1}" y2="${Math.sin(a) * r1}" stroke-width="${big ? 1.4 : 0.8}"/>`;
-  }).join('');
-  d.innerHTML = `<svg viewBox="-110 -110 220 220"><g class="ticks">${ticks}</g><circle r="86" fill="none" stroke-width=".6" stroke-dasharray="1 3"/>
-    <path d="M-104 -80V-104H-80M80 -104H104V-80M104 80V104H80M-80 104H-104V80" fill="none" stroke-width="1.6"/></svg>
-    <div class="ret-tag"><b></b><span></span></div>`;
+  d.innerHTML = '<svg viewBox="-100 -100 200 200" preserveAspectRatio="none"><path d="M-100 -62V-100H-62M62 -100H100V-62M100 62V100H62M-62 100H-100V62" fill="none" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>';
   el('labels').append(d);
   return d;
 })();
 
+const screenPx = (b, w, h) => {
+  const dist = camera.position.distanceTo(b.pos);
+  return b.r * b.size * (camera === ortho
+    ? h / ((ortho.top - ortho.bottom) / ortho.zoom)
+    : (h / 2) / (dist * Math.tan(THREE.MathUtils.degToRad(persp.fov) / 2)));
+};
+
+/** Corner brackets round whatever was picked last, if it sits fully on screen. */
 function placeReticle(w, h) {
-  const only = MODES[state.mode].multi && state.picked.size === 1 ? state.bodies.find((b) => state.picked.has(b.name)) : null;
-  let px = 0;
-  if (only) {
-    const dist = camera.position.distanceTo(only.pos);
-    px = only.r * only.size * (camera === ortho
-      ? h / ((ortho.top - ortho.bottom) / ortho.zoom)
-      : (h / 2) / (dist * Math.tan(THREE.MathUtils.degToRad(persp.fov) / 2)));
+  const b = MODES[state.mode].multi && state.last ? state.bodies.find((q) => q.name === state.last && state.picked.has(q.name)) : null;
+  let ok = false, x = 0, y = 0, R = 0;
+  if (b) {
+    const px = screenPx(b, w, h);
+    _v.copy(b.pos).project(camera);
+    x = (_v.x + 1) / 2 * w; y = (1 - _v.y) / 2 * h;
+    R = Math.max(px * 1.12 + 12, 20);
+    ok = _v.z < 1 && x - R > 0 && x + R < w && y - R > 0 && y + R < h && px < h * 0.45;
   }
-  if (!only || px < 70 || px > h * 0.42) { reticle.style.opacity = 0; return; }
-  _v.copy(only.pos).project(camera);
-  const x = (_v.x + 1) / 2 * w, y = (1 - _v.y) / 2 * h;
-  const R = px * 1.17 + 14;
-  reticle.style.opacity = 1;
+  reticle.style.opacity = ok ? 1 : 0;
+  if (!ok) return;
   reticle.style.width = reticle.style.height = `${R * 2}px`;
   reticle.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
-  reticle.querySelector('b').textContent = only.name;
-  reticle.querySelector('span').textContent = `R ${Math.round(only.r * ER / 1000).toLocaleString('en').replace(/,/g, ' ')} km`;
-  reticle.querySelector('.ticks').style.transform = `rotate(${(now() / 400) % 360}deg)`;
+}
+
+/** The lens grid follows the biggest body on screen (disc may be mostly off screen). */
+function updateLens(w, h) {
+  const on = theme === 'dark' && MODES[state.mode].multi;
+  let best = null, bestPx = 0, bx = 0, by = 0;
+  if (on) {
+    for (const b of state.bodies) {
+      if (!b.shown || b.size < 0.02) continue;
+      const px = screenPx(b, w, h);
+      _v.copy(b.pos).project(camera);
+      if (_v.z > 1 || px <= bestPx) continue;
+      best = b; bestPx = px; bx = (_v.x + 1) / 2 * w; by = (1 - _v.y) / 2 * h;
+    }
+  }
+  lensGrid.visible = !!best;
+  if (!best) return;
+  const dpr = renderer.getPixelRatio();
+  const u = lensGrid.material.uniforms;
+  u.uC.value.set(bx * dpr, (h - by) * dpr);
+  u.uR.value = Math.min(bestPx, 4 * h) * dpr;
+  u.uRes.value.set(w * dpr, h * dpr);
+  u.uCell.value = 56 * dpr;
 }
 
 function placeLabels(w, h, t) {
@@ -1464,7 +1447,7 @@ function frame() {
     if (Math.abs(ortho.far - far) > far * 0.01) { ortho.far = far; ortho.updateProjectionMatrix(); }
   }
   stars.position.copy(camera.position);
-  updateFabric();
+  updateLens(w, h);
   placePulseArrow(h);
   {
     const earth = state.bodies.find((b) => b.name === 'Earth');
