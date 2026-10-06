@@ -71,7 +71,7 @@ export const FACTS = {
   'Sagittarius A*': {
     epithet: 'The Galactic Anchor',
     blurb: 'The black hole at the centre of the Milky Way: 4.3 million Suns inside an event horizon 18 Suns across.',
-    day: null, massText: '4.3 million ☉', kind: 'blackhole', halo: 2.7,
+    day: null, massText: '4.3 million ☉', kind: 'blackhole',
     tex: 'sgr_a.svg',
   },
   'Solar System': {

@@ -110,7 +110,7 @@ const stars = (() => {
 // ---------------------------------------------------------------- theme ----
 
 const THEMES = {
-  light: { hemi: 1.25, hemiSky: 0xffffff, hemiGround: 0xd9dde6, rim: 0.4, orbit: 0xaab1be, stars: false },
+  light: { hemi: 1.05, hemiSky: 0xffffff, hemiGround: 0xd9dde6, rim: 0.4, orbit: 0xaab1be, stars: false },
   dark: { hemi: 0.42, hemiSky: 0x9fb0d0, hemiGround: 0x0c0f16, rim: 0.3, orbit: 0x3a4356, stars: true },
 };
 let theme = 'light';
@@ -187,58 +187,66 @@ function dotTexture() {
 
 const SPHERE = new THREE.SphereGeometry(1, 96, 64);
 
+// Shared shell for the custom fresnel shaders. Two things every one of them
+// needs and that are easy to forget:
+//  - the renderer uses a logarithmic depth buffer, so a shader that does not
+//    write log depth tests against the globes with garbage, and at some
+//    camera distances the whole back of a shell passes and floods the disc;
+//  - the view direction is constant in the orthographic views, not -vP.
+const FRESNEL_VERT = `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
+  varying vec3 vN; varying vec3 vV;
+  void main() {
+    vN = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vV = projectionMatrix[2][3] == 0.0 ? vec3(0.0, 0.0, 1.0) : normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+    #include <logdepthbuf_vertex>
+  }`;
+const FRESNEL_FRAG_HEAD = `
+  #include <common>
+  #include <logdepthbuf_pars_fragment>
+  varying vec3 vN; varying vec3 vV;`;
+const fresnelMaterial = (uniforms, body, opts = {}) => new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  ...opts,
+  uniforms,
+  vertexShader: FRESNEL_VERT,
+  fragmentShader: `${FRESNEL_FRAG_HEAD}
+    ${Object.keys(uniforms).map((k) => `uniform ${uniforms[k].value.isColor ? 'vec3' : 'float'} ${k};`).join('\n')}
+    void main() {
+      #include <logdepthbuf_fragment>
+      float d = dot(normalize(vN), normalize(vV));
+      ${body}
+    }`,
+});
+
 // Limb haze for the bodies that have an atmosphere, at its true thickness:
 // the shell radius is the real height of the visible air (Earth ~100 km,
 // 1.6 % of the radius; Venus's cloud deck ~70 km; Mars's thin dust haze).
-const atmoMaterial = (color) => new THREE.ShaderMaterial({
-  transparent: true,
-  depthWrite: false,
-  side: THREE.BackSide,
-  uniforms: { color: { value: new THREE.Color(color) } },
-  vertexShader: `
-    varying vec3 vN; varying vec3 vP;
-    void main() {
-      vN = normalize(normalMatrix * normal);
-      vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      vP = mv.xyz;
-      gl_Position = projectionMatrix * mv;
-    }`,
-  fragmentShader: `
-    uniform vec3 color; varying vec3 vN; varying vec3 vP;
-    void main() {
-      float d = dot(normalize(vN), normalize(-vP));
-      float a = pow(clamp(-d / 0.3, 0.0, 1.0), 1.4);
-      gl_FragColor = vec4(color, a * 0.85);
-    }`,
-});
+// Front faces, fading to nothing at the centre of the disc: whatever the
+// depth buffer does, this shell can only ever tint the limb.
+const atmoMaterial = (color) => fresnelMaterial(
+  { color: { value: new THREE.Color(color) } },
+  `float a = pow(1.0 - clamp(d, 0.0, 1.0), 4.0);
+   gl_FragColor = vec4(color, a * 0.9);`,
+  { side: THREE.FrontSide },
+);
 
 /** A glow that thickens towards the limb, seen from outside (FrontSide). */
-const rimMaterial = (color, strength = 0.6, power = 3.0) => new THREE.ShaderMaterial({
-  transparent: true,
-  depthWrite: false,
-  uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength }, power: { value: power } },
-  vertexShader: `
-    varying vec3 vN; varying vec3 vP;
-    void main() {
-      vN = normalize(normalMatrix * normal);
-      vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      vP = mv.xyz;
-      gl_Position = projectionMatrix * mv;
-    }`,
-  fragmentShader: `
-    uniform vec3 color; uniform float strength; uniform float power; varying vec3 vN; varying vec3 vP;
-    void main() {
-      float d = clamp(dot(normalize(vN), normalize(-vP)), 0.0, 1.0);
-      gl_FragColor = vec4(color, pow(1.0 - d, power) * strength);
-    }`,
-});
+const rimMaterial = (color, strength = 0.6, power = 3.0) => fresnelMaterial(
+  { color: { value: new THREE.Color(color) }, strength: { value: strength }, power: { value: power } },
+  `gl_FragColor = vec4(color, pow(1.0 - clamp(d, 0.0, 1.0), power) * strength);`,
+);
 
-/** A circle in the x–y plane, facing the front camera. */
-function faceCircle(radius, color, opacity, segments = 192) {
+/** A circle in the x–z plane: an orbit, seen edge-on from the front. */
+function flatCircle(radius, color, opacity, segments = 192) {
   const pts = [];
   for (let i = 0; i < segments; i++) {
     const a = (i / segments) * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0));
+    pts.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
   }
   return new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(pts),
@@ -246,41 +254,58 @@ function faceCircle(radius, color, opacity, segments = 192) {
   );
 }
 
-/** A belt of small bodies: an annulus of dots with a little thickness. */
+/** A soft white disc, so belt points are round grains rather than squares. */
+let _grain = null;
+function grainTexture() {
+  if (_grain) return _grain;
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  _grain = new THREE.CanvasTexture(c);
+  return _grain;
+}
+
+/**
+ * A belt of small bodies in the x–z plane: an annulus of grains with the
+ * vertical spread the real belt has (inclinations of ten degrees or so).
+ */
 function belt(r0, r1, n, color, thick) {
   const pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2;
-    // Area-uniform in the annulus, then pushed towards the middle a bit.
     const u = Math.random();
-    const r = Math.sqrt(r0 * r0 + u * (r1 * r1 - r0 * r0));
-    const z = (Math.random() + Math.random() + Math.random() - 1.5) * thick;
-    pos.set([Math.cos(a) * r, Math.sin(a) * r, z], i * 3);
+    const r = Math.sqrt(r0 * r0 + u * (r1 * r1 - r0 * r0));     // area-uniform
+    const y = (Math.random() + Math.random() + Math.random() - 1.5) * thick * r;
+    pos.set([Math.cos(a) * r, y, Math.sin(a) * r], i * 3);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   return new THREE.Points(g, new THREE.PointsMaterial({
-    color, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false,
+    color, size: 2.6, sizeAttenuation: false, map: grainTexture(), alphaTest: 0.2,
+    transparent: true, opacity: 0.9, depthWrite: false,
   }));
 }
 
 /**
- * The Solar System as one object, in units of the heliopause radius: the
- * planets' orbits, the two belts, the Sun as a speck, and the heliosphere
- * bubble around it all. Faces the front camera; edge-on from the side.
+ * The Solar System as one object, in units of the heliopause radius, laid
+ * flat like the planets' orbits really are: seen edge-on from the front,
+ * opening up as the camera rises. The orbits, the two belts as grains of
+ * rock and ice, the Sun as a speck, and the heliopause as a bare outline.
  */
 function solarSystemDisc() {
   const g = new THREE.Group();
   const H = HELIOPAUSE;
-  for (const p of PLANETS) g.add(faceCircle(p.a / H, 0x7d74d8, 0.9));
-  g.add(belt(ASTEROID_BELT[0] / H, ASTEROID_BELT[1] / H, 900, 0x2fa7dc, 0.003));
-  g.add(belt(KUIPER_BELT[0] / H, KUIPER_BELT[1] / H, 2600, 0x8e7fe0, 0.03));
-  // The heliosphere: a faint fill and a bright edge, see-through in the middle.
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 128), new THREE.MeshBasicMaterial({
-    color: 0x7a5fe0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false,
-  }));
-  g.add(disc);
-  const bubble = new THREE.Mesh(SPHERE, rimMaterial('#8a6cff', 0.95, 2.6));
+  for (const p of PLANETS) g.add(flatCircle(p.a / H, 0x8a90a3, 0.85));
+  g.add(belt(ASTEROID_BELT[0] / H, ASTEROID_BELT[1] / H, 900, 0xb5a58f, 0.08));
+  g.add(belt(KUIPER_BELT[0] / H, KUIPER_BELT[1] / H, 3200, 0xa9b7c9, 0.3));
+  // The heliopause: a boundary, so just its outline, from any direction.
+  const bubble = new THREE.Mesh(SPHERE, rimMaterial('#8a7fe0', 1.3, 18));
   bubble.renderOrder = 2;
   g.add(bubble);
   const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTexture(), transparent: true, depthWrite: false }));
@@ -299,18 +324,12 @@ function makeBody(name, rMetres, color) {
   let mesh;
 
   if (f.kind === 'blackhole') {
-    // The event horizon: unlit black. A warm rim stands in for the lensed
-    // light bending round it, and a thin ring marks the shadow's edge, 2.6
-    // radii out, where the Event Horizon Telescope sees it.
+    // The event horizon: a big unlit black globe. A faint warm rim is the
+    // only concession, so it does not vanish against the dark theme.
     mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    const rimGlow = new THREE.Mesh(SPHERE, rimMaterial(SGR_A_STAR.color, 0.7, 2.2));
+    const rimGlow = new THREE.Mesh(SPHERE, rimMaterial(SGR_A_STAR.color, 0.45, 3.5));
     rimGlow.scale.setScalar(1.003);
     group.add(rimGlow);
-    const s = SGR_A_STAR.shadow;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(s - 0.06, s + 0.06, 192), new THREE.MeshBasicMaterial({
-      color: SGR_A_STAR.color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false,
-    }));
-    group.add(ring);
   } else if (f.kind === 'system') {
     mesh = solarSystemDisc();
   } else if (f.emissive) {
@@ -600,9 +619,13 @@ function setTip(text) { el('tipText').textContent = text ?? TIP_DEFAULT; }
 function layoutSizes(instant = false) {
   const picked = state.bodies.filter((b) => state.picked.has(b.name));
   // Smallest to largest by footprint, so Saturn's rings end the row instead
-  // of lying across Jupiter and Uranus.
-  const row = picked.filter((b) => b.name !== 'Sun').sort((a, b) => a.ext - b.ext);
-  const sun = picked.find((b) => b.name === 'Sun');
+  // of lying across Jupiter and Uranus. The Sun stands past the end as a
+  // limb only while it is the biggest thing picked; next to the black hole
+  // or the whole Solar System it takes its place in the row like any globe.
+  const sorted = [...picked].sort((a, b) => a.ext - b.ext);
+  const sunIsLimb = sorted.length > 1 && sorted[sorted.length - 1].name === 'Sun';
+  const row = sunIsLimb ? sorted.slice(0, -1) : (sorted.length === 1 && sorted[0].name === 'Sun' ? [] : sorted);
+  const sun = picked.find((b) => b.name === 'Sun' && (sunIsLimb || sorted.length === 1));
 
   let x = 0;
   let prev = null;
@@ -639,7 +662,7 @@ function layoutSizes(instant = false) {
     if (target != null) {
       if (!b.shown) {
         // New arrival: drop in from above, or just swell up when it is the Sun.
-        const dropFrom = b.name === 'Sun' ? 0 : 3 + b.r * 2.5;
+        const dropFrom = b.name === 'Sun' || b.r > 500 ? 0 : 3 + b.r * 2.5;
         b.pos.set(target, dropFrom, 0);
         b.size = 0;
       }
@@ -828,25 +851,12 @@ function ensurePulse() {
   if (pulse.mesh) return;
   // The shell: a fresnel wash that thickens towards the limb, so the front
   // reads as a surface rather than a flat tint.
-  pulse.mesh = new THREE.Mesh(SPHERE, new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.FrontSide,
-    uniforms: { color: { value: new THREE.Color(PULSE_COLOR) }, opacity: { value: 1 } },
-    vertexShader: `
-      varying vec3 vN; varying vec3 vP;
-      void main() {
-        vN = normalize(normalMatrix * normal);
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vP = mv.xyz;
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: `
-      uniform vec3 color; uniform float opacity; varying vec3 vN; varying vec3 vP;
-      void main() {
-        float d = abs(dot(normalize(vN), normalize(-vP)));
-        float a = 0.07 + 0.55 * pow(1.0 - d, 3.0);
-        gl_FragColor = vec4(color, a * opacity);
-      }`,
-  }));
+  pulse.mesh = new THREE.Mesh(SPHERE, fresnelMaterial(
+    { color: { value: new THREE.Color(PULSE_COLOR) }, opacity: { value: 1 } },
+    `float a = 0.07 + 0.55 * pow(1.0 - abs(d), 3.0);
+     gl_FragColor = vec4(color, a * opacity);`,
+    { side: THREE.FrontSide },
+  ));
   pulse.mesh.renderOrder = 5;
 
   // The front itself: a fat line, constant width in pixels at every zoom.
@@ -1350,5 +1360,5 @@ requestAnimationFrame(frame);
 // Handy for the screenshot tool and the console.
 window.__demo = {
   setMode, setVariant, select, startPulse, setPicked, togglePick, setSide, setTheme, pulseRadius, compress, U,
-  state, pulse, controls, flyToBody, get camera() { return camera; }, get side() { return side; },
+  state, pulse, controls, flyToBody, renderer, scene, get camera() { return camera; }, get side() { return side; },
 };

@@ -21,7 +21,7 @@ const [W, H] = opt('--size', '1512x857').split('x').map(Number);
 const SHOTS = [
   ['sizes-home', 'earth-moon', null, null, [], 2500],
   ['sizes-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], [], 2800],
-  ['sizes-everything', 'earth-moon', null, 'all', [], 2800],
+  ['sizes-everything', 'earth-moon', null, ['Sun', 'Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], [], 2800],
   ['sizes-side', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], ['side', 1500], 2500],
   ['sizes-end-home', 'earth-moon', null, null, ['end', 1500], 2500],
   ['sizes-end-all', 'earth-moon', null, 'all', ['end', 1500], 2500],
@@ -102,6 +102,35 @@ for (const variant of ['compressed', 'true']) {
   }, variant);
   console.log(`${variant} pulse check:\n  ` + check.join('\n  '));
 }
+
+// The Earth's atmosphere must stay a thin ring at every camera distance: sample
+// the pixel at the centre of the Earth's disc while the camera flies between
+// views and make sure it never turns sky-blue (the log-depth bug did that).
+await page.evaluate(() => { window.__demo.setMode('earth-moon'); window.__demo.setPicked(['Earth', 'Moon']); });
+await page.waitForTimeout(1800);
+const blueFrames = [];
+for (const view of ['front', 'end', null, 'front', null]) {
+  await page.evaluate((v) => window.__demo.setSide(v), view);
+  for (let i = 0; i < 8; i++) {
+    await page.waitForTimeout(150);
+    const px = await page.evaluate(() => {
+      const d = window.__demo;
+      const earth = d.state.bodies.find((b) => b.name === 'Earth');
+      const v = earth.pos.clone().project(d.camera);
+      const c = document.getElementById('stage');
+      const x = Math.round((v.x + 1) / 2 * c.width), y = Math.round((1 - v.y) / 2 * c.height);
+      // Render and read in one go: the drawing buffer is not preserved.
+      d.renderer.render(d.scene, d.camera);
+      const gl = d.renderer.getContext();
+      const buf = new Uint8Array(4);
+      gl.readPixels(x, c.height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      return [...buf];
+    });
+    // Sky-blue flood: blue high, red low, and much bluer than the ocean texture gets.
+    if (px[2] > 200 && px[0] > 110 && px[0] < 170 && px[1] > 170) blueFrames.push({ view, i, px });
+  }
+}
+console.log('atmosphere flood frames:', blueFrames.length, blueFrames.slice(0, 3).map((f) => f.px.join(',')).join(' | ') || 'none');
 
 // Projected diameters in the orthographic compare view must be in the ratio
 // of the real radii.
