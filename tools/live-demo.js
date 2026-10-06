@@ -45,6 +45,8 @@ await page.locator('#dock button.tog').nth(1).click();    // Along
 await page.waitForTimeout(1800);
 console.log('along ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true && window.__demo.side === 'end'));
 await page.screenshot({ path: path.join(OUT, 'live-along.png') });
+await page.mouse.move(700, 430); await page.mouse.wheel(0, -200); await page.waitForTimeout(500);
+console.log('after wheel still along:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true && window.__demo.side === 'end'));
 await page.mouse.move(700, 430); await page.mouse.down(); await page.mouse.move(760, 440, { steps: 5 }); await page.mouse.up();
 await page.waitForTimeout(400);
 console.log('after drag persp:', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
@@ -54,6 +56,8 @@ await page.waitForTimeout(2000);
 await page.click('#dock button.go');                       // Send light
 await page.waitForTimeout(7000);
 console.log('pulse arrow visible:', await page.evaluate(() => window.__demo.pulse.arrow.visible && window.__demo.pulse.arrow.scale.x > 0));
+await page.locator('#dock .seg button').nth(0).click();
+console.log('speed picker:', await page.evaluate(() => [...document.querySelectorAll('#dock .seg button')].map((b) => b.textContent).join(' ')), '| picked ×1 →', await page.evaluate(() => window.__demo.pulse.speed));
 await page.screenshot({ path: path.join(OUT, 'live-light.png') });
 await page.click('#theme');
 await page.waitForTimeout(800);

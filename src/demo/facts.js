@@ -22,14 +22,15 @@ export const FACTS = {
     epithet: 'The Veiled Twin',
     blurb: 'Earth-sized, wrapped in clouds of sulphuric acid. The hottest surface of any planet.',
     gravity: 0.904, day: 5832.5, year: 224.7, temp: 464, moons: 0, mass: 0.815,
-    tex: 'venus_atmosphere.jpg',
+    tex: 'venus_atmosphere.jpg', atmosphere: { scale: 1.012, color: '#f1dcb0' },
   },
   Earth: {
     epithet: 'The Pale Blue Dot',
     blurb: 'Home. Everything in these scenes is measured against it: one Earth radius is the unit.',
     gravity: 1.0, day: 23.9, year: 365.25, temp: 15, moons: 1, mass: 1,
     tex: 'earth_daymap.jpg', hi: 'earth_daymap_4k.jpg', clouds: 'earth_clouds.jpg', night: 'earth_nightmap.jpg',
-    normal: 'earth_normal.jpg', hiNormal: 'earth_normal_4k.jpg', rough: 'earth_rough.jpg', hiRough: 'earth_rough_4k.jpg', atmosphere: true,
+    normal: 'earth_normal.jpg', hiNormal: 'earth_normal_4k.jpg', rough: 'earth_rough.jpg', hiRough: 'earth_rough_4k.jpg',
+    atmosphere: { scale: 1.016, color: '#8cc3ff' },   // Kármán line, 100 km
   },
   Moon: {
     epithet: 'The Quiet Companion',
@@ -41,7 +42,7 @@ export const FACTS = {
     epithet: 'The Rusted World',
     blurb: 'Half the size of Earth, with the tallest volcano and the deepest canyon in the solar system.',
     gravity: 0.379, day: 24.6, year: 687.0, temp: -65, moons: 2, mass: 0.107,
-    tex: 'mars.jpg', hi: 'mars_4k.jpg', bump: 0.015,
+    tex: 'mars.jpg', hi: 'mars_4k.jpg', bump: 0.015, atmosphere: { scale: 1.012, color: '#e8c4a0' },
   },
   Jupiter: {
     epithet: 'The Storm King',

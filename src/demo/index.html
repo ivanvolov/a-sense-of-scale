@@ -398,6 +398,15 @@ body {
 #dock button.go:hover { background: #e38a3a; }
 #dock button i { font-style: normal; font-size: 14px; }
 #dock .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+#dock .seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--track);
+}
+#dock .seg button { padding: 8px 12px; font-size: 11.5px; color: var(--dim); }
+#dock .seg button.on { background: var(--card-solid); color: var(--teal-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 
 #dots {
   grid-column: 2;

@@ -55,8 +55,10 @@ controls.maxDistance = 6e6;
 controls.addEventListener('start', () => {
   camTween = null;
   if (follow) { follow = false; renderDock(); }
-  // Any hand on the camera ends the straight-on comparison view.
-  if (side) setSide(null, true);
+  // Turning the camera ends a fixed view; zooming keeps it (a scroll in the
+  // orthographic view just changes the magnification). OrbitControls has
+  // set its state by now: 0 / 3 / 6 are the rotating gestures.
+  if (side && [0, 3, 6].includes(controls.state)) setSide(null, true);
   canvas.classList.add('dragging');
 });
 controls.addEventListener('end', () => canvas.classList.remove('dragging'));
@@ -68,8 +70,9 @@ sunLight.position.set(1, 0.35, 0.55);
 scene.add(sunLight);
 const sunPoint = new THREE.PointLight(0xfff1d6, 0, 0, 0);
 scene.add(sunPoint);
-// A cool rim from behind-left lifts the dark limb off the pale background.
-const rim = new THREE.DirectionalLight(0xdbe8ff, 0.7);
+// A faint cool rim from behind-left lifts the dark limb off the pale
+// background. Kept weak: it is a studio light, not a thing in space.
+const rim = new THREE.DirectionalLight(0xdbe8ff, 0.4);
 rim.position.set(-0.8, 0.5, -1);
 scene.add(rim);
 // Sun direction in view space, for the Earth's night lights.
@@ -105,8 +108,8 @@ const stars = (() => {
 // ---------------------------------------------------------------- theme ----
 
 const THEMES = {
-  light: { hemi: 1.25, hemiSky: 0xffffff, hemiGround: 0xd9dde6, rim: 0.7, orbit: 0xaab1be, stars: false },
-  dark: { hemi: 0.42, hemiSky: 0x9fb0d0, hemiGround: 0x0c0f16, rim: 0.4, orbit: 0x3a4356, stars: true },
+  light: { hemi: 1.25, hemiSky: 0xffffff, hemiGround: 0xd9dde6, rim: 0.4, orbit: 0xaab1be, stars: false },
+  dark: { hemi: 0.42, hemiSky: 0x9fb0d0, hemiGround: 0x0c0f16, rim: 0.3, orbit: 0x3a4356, stars: true },
 };
 let theme = 'light';
 function setTheme(t) {
@@ -167,10 +170,12 @@ function coronaTexture() {
   c.width = c.height = 512;
   const g = c.getContext('2d');
   const grad = g.createRadialGradient(256, 256, 0, 256, 256, 256);
+  // A modest bloom just past the limb: what a camera does to anything this
+  // bright. The real corona is a millionth as bright as the disc.
   grad.addColorStop(0.0, 'rgba(255, 214, 150, 0.95)');
-  grad.addColorStop(0.70, 'rgba(255, 190, 110, 0.8)');
-  grad.addColorStop(0.78, 'rgba(255, 170, 80, 0.4)');
-  grad.addColorStop(0.9, 'rgba(255, 160, 70, 0.07)');
+  grad.addColorStop(0.56, 'rgba(255, 190, 110, 0.8)');
+  grad.addColorStop(0.64, 'rgba(255, 170, 80, 0.35)');
+  grad.addColorStop(0.82, 'rgba(255, 160, 70, 0.05)');
   grad.addColorStop(1.0, 'rgba(255, 160, 70, 0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 512, 512);
@@ -183,11 +188,14 @@ function coronaTexture() {
 
 const SPHERE = new THREE.SphereGeometry(1, 96, 64);
 
-const ATMO = new THREE.ShaderMaterial({
+// Limb haze for the bodies that have an atmosphere, at its true thickness:
+// the shell radius is the real height of the visible air (Earth ~100 km,
+// 1.6 % of the radius; Venus's cloud deck ~70 km; Mars's thin dust haze).
+const atmoMaterial = (color) => new THREE.ShaderMaterial({
   transparent: true,
   depthWrite: false,
   side: THREE.BackSide,
-  uniforms: { color: { value: new THREE.Color('#8cc3ff') } },
+  uniforms: { color: { value: new THREE.Color(color) } },
   vertexShader: `
     varying vec3 vN; varying vec3 vP;
     void main() {
@@ -200,8 +208,8 @@ const ATMO = new THREE.ShaderMaterial({
     uniform vec3 color; varying vec3 vN; varying vec3 vP;
     void main() {
       float d = dot(normalize(vN), normalize(-vP));
-      float a = pow(clamp(-d / 0.42, 0.0, 1.0), 1.6);
-      gl_FragColor = vec4(color, a * 0.6);
+      float a = pow(clamp(-d / 0.3, 0.0, 1.0), 1.4);
+      gl_FragColor = vec4(color, a * 0.85);
     }`,
 });
 
@@ -221,7 +229,7 @@ function makeBody(name, rMetres, color) {
     const corona = new THREE.Sprite(new THREE.SpriteMaterial({
       map: coronaTexture(), transparent: true, depthWrite: false, depthTest: true,
     }));
-    corona.scale.setScalar(2.5);
+    corona.scale.setScalar(1.75);
     corona.renderOrder = -2;
     group.add(corona);
     hi(mesh.material, 'map', f.hi);
@@ -236,6 +244,9 @@ function makeBody(name, rMetres, color) {
       sh.uniforms.uSun = uSun;
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform vec3 uSun;')
+        // Oceans glint, but as a broad sheen: a mirror-sharp highlight reads
+        // as a camera flare, which space does not have.
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = max(roughnessFactor, 0.58);')
         .replace('#include <emissivemap_fragment>',
           '#include <emissivemap_fragment>\n'
           + 'totalEmissiveRadiance *= 1.0 - smoothstep(-0.12, 0.22, dot(normalize(vNormal), normalize(uSun)));');
@@ -262,8 +273,8 @@ function makeBody(name, rMetres, color) {
     spin.add(clouds);
   }
   if (f.atmosphere) {
-    const atmo = new THREE.Mesh(SPHERE, ATMO);
-    atmo.scale.setScalar(1.085);
+    const atmo = new THREE.Mesh(SPHERE, atmoMaterial(f.atmosphere.color));
+    atmo.scale.setScalar(f.atmosphere.scale);
     group.add(atmo);
   }
   if (f.ring) {
@@ -346,7 +357,8 @@ const MODES = {
     title: 'Distances',
     multi: false,
     variants: [['compressed', 'Compressed'], ['true', 'True scale']],
-    speeds: [60, 600, 3600, 1],
+    speeds: [1, 60, 600],
+    speedDefault: 60,
     build() {
       const bodies = [makeBody('Sun', SUN.r, SUN.color), ...PLANETS.map((p) => makeBody(p.name, p.r, p.color))];
       const orbits = PLANETS.map((p) => {
@@ -438,7 +450,7 @@ function setMode(id, variant) {
   if (side) setSide(null, true);
 
   resetPulse();
-  pulse.speed = def.speeds[0];
+  pulse.speed = def.speedDefault ?? def.speeds[0];
   follow = !def.multi;
   state.variant = null;
 
@@ -814,9 +826,8 @@ function resetPulse() {
   setPulseVisible(false);
 }
 
-function cycleSpeed() {
-  const speeds = MODES[state.mode].speeds;
-  pulse.speed = speeds[(speeds.indexOf(pulse.speed) + 1) % speeds.length];
+function setSpeed(s) {
+  pulse.speed = s;
   renderDock();
   renderOverview();
 }
@@ -960,8 +971,18 @@ function renderDock() {
   sep();
   add(`<i>⚡</i>${pulse.sim > 0 ? 'Replay' : 'Send light'}`, false, startPulse, 'go');
   if (def.speeds.length > 1) {
-    const sp = add(pulse.speed === 1 ? '×1' : `×${pulse.speed}`, false, cycleSpeed);
-    sp.title = 'Time multiplier';
+    // A segmented picker: every speed one click away, no cycling.
+    const seg = document.createElement('span');
+    seg.className = 'seg';
+    seg.title = 'Time multiplier';
+    for (const s of def.speeds) {
+      const b = document.createElement('button');
+      b.textContent = `×${s}`;
+      b.classList.toggle('on', s === pulse.speed);
+      b.onclick = () => setSpeed(s);
+      seg.append(b);
+    }
+    dock.append(seg);
   }
   const fl = add('<i>◎</i>Follow light', follow, () => { follow = !follow; renderDock(); }, 'tog');
   fl.title = 'Pull the camera back as the pulse grows';

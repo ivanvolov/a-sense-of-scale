@@ -119,7 +119,7 @@ const sizes = await page.evaluate(() => {
 console.log('ortho =', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true));
 console.log('compare view sizes:\n  ' + sizes.join('\n  '));
 
-// A drag must hand the scene back to the perspective camera, a wheel too.
+// A drag must hand the scene back to the perspective camera; a wheel only zooms.
 await page.mouse.move(W / 2, H / 2);
 await page.mouse.down();
 await page.mouse.move(W / 2 + 60, H / 2 + 10, { steps: 6 });
@@ -128,9 +128,12 @@ await page.waitForTimeout(300);
 console.log('after drag: persp =', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
 await page.evaluate(() => window.__demo.setSide(true, true));
 await page.waitForTimeout(300);
+const zoom0 = await page.evaluate(() => window.__demo.camera.zoom);
+await page.mouse.move(W / 2, H / 2);
 await page.mouse.wheel(0, -200);
-await page.waitForTimeout(300);
-console.log('after wheel: persp =', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
+await page.waitForTimeout(600);
+console.log('after wheel: still ortho =', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true && window.__demo.side === 'front'),
+  '| zoomed:', await page.evaluate((z) => window.__demo.camera.zoom > z, zoom0));
 
 await browser.close();
 server.close();
