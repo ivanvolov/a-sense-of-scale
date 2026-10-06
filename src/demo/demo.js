@@ -302,7 +302,17 @@ function regolith(m) {
         float lum = dot(diffuseColor.rgb, vec3(0.333));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.88, 0.95, 1.10), smoothstep(0.40, 0.16, lum));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.10, 1.0, 0.88), smoothstep(0.30, 0.62, lum));
-        diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.18)) * 1.18;`)
+        diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.18)) * 1.18;
+        {
+          float lat = asin(clamp(qo.y, -1.0, 1.0)), lon = atan(qo.x, qo.z);
+          vec2 gu = vec2(lat, lon) * (12.0 / 3.14159265);
+          vec2 fw = fwidth(gu) + 1e-5;
+          vec2 gl = abs(fract(gu - 0.5) - 0.5) / fw;
+          float line = 1.0 - clamp(min(gl.x, gl.y) - 0.35, 0.0, 1.0);
+          float eq = 1.0 - clamp(abs(lat) * 12.0 / 3.14159265 / fw.x - 0.35, 0.0, 1.0);
+          line *= 1.0 - smoothstep(0.35, 0.9, fw.x * 12.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.95, 0.78), clamp(line * 0.34 + eq * 0.4, 0.0, 0.7));
+        }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += diffuseColor.rgb * vec3(0.10, 0.15, 0.26) * 0.20
           * (1.0 - smoothstep(-0.12, 0.2, dot(normalize(vNormal), normalize(uSunR))));`);
@@ -1208,7 +1218,43 @@ function refreshBlocked(t) {
 }
 const inRect = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
+const reticle = (() => {
+  const d = document.createElement('div');
+  d.id = 'reticle';
+  const ticks = Array.from({ length: 72 }, (_, i) => {
+    const a = (i / 72) * Math.PI * 2, big = i % 6 === 0, r0 = big ? 90 : 93, r1 = 97;
+    return `<line x1="${Math.cos(a) * r0}" y1="${Math.sin(a) * r0}" x2="${Math.cos(a) * r1}" y2="${Math.sin(a) * r1}" stroke-width="${big ? 1.4 : 0.8}"/>`;
+  }).join('');
+  d.innerHTML = `<svg viewBox="-110 -110 220 220"><g class="ticks">${ticks}</g><circle r="86" fill="none" stroke-width=".6" stroke-dasharray="1 3"/>
+    <path d="M-104 -80V-104H-80M80 -104H104V-80M104 80V104H80M-80 104H-104V80" fill="none" stroke-width="1.6"/></svg>
+    <div class="ret-tag"><b></b><span></span></div>`;
+  el('labels').append(d);
+  return d;
+})();
+
+function placeReticle(w, h) {
+  const only = MODES[state.mode].multi && state.picked.size === 1 ? state.bodies.find((b) => state.picked.has(b.name)) : null;
+  let px = 0;
+  if (only) {
+    const dist = camera.position.distanceTo(only.pos);
+    px = only.r * only.size * (camera === ortho
+      ? h / ((ortho.top - ortho.bottom) / ortho.zoom)
+      : (h / 2) / (dist * Math.tan(THREE.MathUtils.degToRad(persp.fov) / 2)));
+  }
+  if (!only || px < 70 || px > h * 0.42) { reticle.style.opacity = 0; return; }
+  _v.copy(only.pos).project(camera);
+  const x = (_v.x + 1) / 2 * w, y = (1 - _v.y) / 2 * h;
+  const R = px * 1.17 + 14;
+  reticle.style.opacity = 1;
+  reticle.style.width = reticle.style.height = `${R * 2}px`;
+  reticle.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+  reticle.querySelector('b').textContent = only.name;
+  reticle.querySelector('span').textContent = `R ${Math.round(only.r * ER / 1000).toLocaleString('en').replace(/,/g, ' ')} km`;
+  reticle.querySelector('.ticks').style.transform = `rotate(${(now() / 400) % 360}deg)`;
+}
+
 function placeLabels(w, h, t) {
+  placeReticle(w, h);
   if (MODES[state.mode].multi) {
     for (const b of state.bodies) { b.label.style.opacity = 0; b.marker.style.display = 'none'; }
     return;
