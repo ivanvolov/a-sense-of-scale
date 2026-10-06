@@ -225,6 +225,54 @@ const rimMaterial = (color, strength = 0.6, power = 3.0) => fresnelMaterial(
   `gl_FragColor = vec4(color, pow(1.0 - clamp(d, 0.0, 1.0), power) * strength);`,
 );
 
+/**
+ * A red supergiant's surface from 3D noise of the point on the sphere. A
+ * texture wrapped round a star 83 000 Earth radii wide is seen only at its
+ * edge, where the map is squeezed into vertical stripes; noise in 3D has no
+ * seam, no poles and no stretch at any zoom.
+ */
+const supergiantMaterial = () => new THREE.ShaderMaterial({
+  vertexShader: `
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    varying vec3 vP; varying vec3 vN; varying vec3 vV;
+    void main() {
+      vP = position;
+      vN = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      vV = projectionMatrix[2][3] == 0.0 ? vec3(0.0, 0.0, 1.0) : normalize(-mv.xyz);
+      gl_Position = projectionMatrix * mv;
+      #include <logdepthbuf_vertex>
+    }`,
+  fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    varying vec3 vP; varying vec3 vN; varying vec3 vV;
+    float h31(vec3 p) {
+      p = fract(p * 0.3183099 + 0.1); p *= 17.0;
+      return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+    }
+    float vn(vec3 x) {
+      vec3 i = floor(x), f = fract(x);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+                 mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
+    }
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec3 p = normalize(vP);
+      float n = 0.0, a = 0.5, fq = 2.2;
+      for (int i = 0; i < 6; i++) { n += a * vn(p * fq + float(i) * 7.3); a *= 0.55; fq *= 2.1; }
+      float d = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
+      n = clamp((n - 0.25) / 0.6, 0.0, 1.0);
+      n = mix(0.45, n, smoothstep(0.02, 0.4, d));   // foreshortened near the edge: calm, not streaky
+      vec3 dark = vec3(0.62, 0.17, 0.05), mid = vec3(0.93, 0.42, 0.11), hot = vec3(1.0, 0.68, 0.30);
+      vec3 c = n < 0.5 ? mix(dark, mid, n * 2.0) : mix(mid, hot, (n - 0.5) * 2.0);
+      c *= mix(0.42, 1.0, pow(d, 0.55));
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+
 /** A body: group + mesh, plus the HTML label and marker that follow it. */
 function makeBody(name, rMetres, color) {
   const f = FACTS[name];
@@ -244,9 +292,13 @@ function makeBody(name, rMetres, color) {
   } else if (f.emissive) {
     // The photosphere has a sharp edge. The corona is real but a millionth
     // as bright as the disc; the halo cameras add is not drawn.
-    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: f.tint ?? 0xfff6e6 }));
-    hi(mesh.material, 'map', f.hi);
-    if (f.limbDark) {
+    if (f.proc) {
+      mesh = new THREE.Mesh(SPHERE, supergiantMaterial());
+    } else {
+      mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: f.tint ?? 0xfff6e6 }));
+      hi(mesh.material, 'map', f.hi);
+    }
+    if (f.limbDark && !f.proc) {
       // A red supergiant's edge is visibly darker than its middle.
       const dark = new THREE.Mesh(SPHERE, rimMaterial(f.limbDark, 0.5, 2.2));
       dark.scale.setScalar(1.00002);
@@ -941,7 +993,7 @@ function select(b, instant = false) {
     const p = PLANETS.find((q) => q.name === b.name);
     el('epithet').textContent = p
       ? `${(p.a / AU).toFixed(2)} AU from the Sun · light takes ${lightTime(p.a - SUN.r)}`
-      : `${lengthStr(SUN.d)} across · light reaches Neptune in ${lightTime(PLANETS[7].a - SUN.r)}`;
+      : '';
     el('blurb').textContent = '';
     el('chips').innerHTML = '';
   };
@@ -1244,9 +1296,13 @@ function frame() {
   camera.updateMatrixWorld(true);
   // An orthographic depth buffer is linear: with a far plane of 1e9 one step is
   // 60 scene units and bodies a few units apart z-fight (a far globe shows
-  // through a near one). Keep the range just around what is on screen.
+  // through a near one). Keep the range to what is shown, far side of a giant
+  // star included, or the star is sliced into a polygon by the far plane.
   if (camera === ortho && state.rowFrame) {
-    const far = camera.position.distanceTo(controls.target) + state.rowFrame.width * 1.5 + 10;
+    let far = camera.position.distanceTo(controls.target) + state.rowFrame.width * 1.5 + 10;
+    for (const b of state.bodies) {
+      if (b.shown && b.facts.limb) far = Math.max(far, camera.position.distanceTo(b.pos) + b.r * b.size * 1.01);
+    }
     if (Math.abs(ortho.far - far) > far * 0.01) { ortho.far = far; ortho.updateProjectionMatrix(); }
   }
   stars.position.copy(camera.position);

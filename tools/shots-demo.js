@@ -31,6 +31,8 @@ const SHOTS = [
   ['sizes-sun-bh', 'earth-moon', null, ['Sun', 'Sagittarius A*'], [], 2800],
   ['sizes-sun-betelgeuse', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], [], 2800],
   ['sizes-betelgeuse', 'earth-moon', null, ['Betelgeuse'], [], 2800],
+  ['dark-sizes-end-betelgeuse', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], ['dark', 'end', 1500], 2500],
+  ['ss-sun-selected', 'solar-system', 'compressed', 'Sun', [], 2000],
   ['sizes-zoom-earth', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], [['zoom', 'Earth'], 2200], 1500],
   ['sizes-zoom-earth-front', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['side', 1500, ['zoom', 'Earth'], 1800], 1200],
   ['sizes-zoom-jupiter-end', 'earth-moon', null, ['Mercury', 'Earth', 'Jupiter', 'Saturn'], ['end', 1500, ['zoom', 'Jupiter'], 1800], 1200],

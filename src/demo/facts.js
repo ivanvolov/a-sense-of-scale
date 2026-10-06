@@ -78,7 +78,7 @@ export const FACTS = {
     epithet: 'The Red Supergiant',
     blurb: 'A red supergiant 550 light-years away, about 760 Suns across. In the Sun\'s place it would swallow Mars and the whole asteroid belt and stop just short of Jupiter.',
     day: null, massText: '16–19 ☉', kind: 'star', emissive: true, limb: true,
-    tex: 'betelgeuse.jpg', tint: 0xffffff, limbDark: '#3a0800',
+    tex: 'betelgeuse.jpg', proc: true, limbDark: '#3a0800',
   },
 };
 
