@@ -27,10 +27,14 @@ const SHOTS = [
   ['sizes-end-all', 'earth-moon', null, 'all', ['end', 1500], 2500],
   ['sizes-end-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], ['end', 1500], 2500],
   ['sizes-sun', 'earth-moon', null, ['Sun'], [], 2500],
-  ['sizes-beyond', 'earth-moon', null, ['Sun', 'Sagittarius A*', 'Solar System'], [], 2800],
+  ['sizes-beyond', 'earth-moon', null, ['Sun', 'Sagittarius A*', 'Betelgeuse'], [], 2800],
   ['sizes-sun-bh', 'earth-moon', null, ['Sun', 'Sagittarius A*'], [], 2800],
-  ['sizes-system', 'earth-moon', null, ['Solar System'], [], 2800],
-  ['dark-sizes-beyond', 'earth-moon', null, ['Sun', 'Sagittarius A*', 'Solar System'], ['dark'], 2800],
+  ['sizes-sun-betelgeuse', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], [], 2800],
+  ['sizes-betelgeuse', 'earth-moon', null, ['Betelgeuse'], [], 2800],
+  ['sizes-zoom-earth', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], [['zoom', 'Earth'], 2200], 1500],
+  ['sizes-zoom-earth-front', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['side', 1500, ['zoom', 'Earth'], 1800], 1200],
+  ['sizes-zoom-jupiter-end', 'earth-moon', null, ['Mercury', 'Earth', 'Jupiter', 'Saturn'], ['end', 1500, ['zoom', 'Jupiter'], 1800], 1200],
+  ['dark-sizes-beyond', 'earth-moon', null, ['Sun', 'Sagittarius A*', 'Betelgeuse'], ['dark'], 2800],
   ['sizes-earth-moon', 'earth-moon', null, ['Earth', 'Moon'], [], 2500],
   ['ss-compressed', 'solar-system', 'compressed', null, [], 2500],
   ['ss-compressed-light', 'solar-system', 'compressed', null, ['light', 9000], 500],
@@ -74,6 +78,7 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
     else if (s === 'end') await page.evaluate(() => window.__demo.setSide('end'));
     else if (s === 'light') await page.evaluate(() => window.__demo.startPulse());
     else if (s === 'dark') await page.evaluate(() => window.__demo.setTheme('dark'));
+    else if (Array.isArray(s)) await page.evaluate(([, n]) => window.__demo.zoomTo(window.__demo.state.bodies.find((b) => b.name === n)), s);
     else if (typeof s === 'number') await page.waitForTimeout(s);
   }
   await page.waitForTimeout(settle);

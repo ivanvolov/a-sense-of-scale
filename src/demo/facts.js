@@ -10,7 +10,7 @@ export const FACTS = {
     epithet: 'The Furnace',
     blurb: 'A ball of plasma 109 Earths across. Everything else in this demo would fit inside it a million times over.',
     gravity: 27.9, day: 609.1, year: null, temp: 5500, moons: null, mass: 333000,
-    tex: 'sun.jpg', hi: 'sun_4k.jpg', emissive: true,
+    tex: 'sun.jpg', hi: 'sun_4k.jpg', emissive: true, limb: true,
   },
   Mercury: {
     epithet: 'The Scorched Messenger',
@@ -74,11 +74,11 @@ export const FACTS = {
     day: null, massText: '4.3 million ☉', kind: 'blackhole',
     tex: 'sgr_a.svg',
   },
-  'Solar System': {
-    epithet: 'Out to the Heliopause',
-    blurb: 'Everything the solar wind reaches: planets, the asteroid belt, the Kuiper belt, and the bubble that ends 120 AU out.',
-    day: null, massText: '1.0 ☉ · almost all of it the Sun', kind: 'system',
-    tex: 'solar_system.svg',
+  Betelgeuse: {
+    epithet: 'The Red Supergiant',
+    blurb: 'A red supergiant 550 light-years away, about 760 Suns across. In the Sun\'s place it would swallow Mars and the whole asteroid belt and stop just short of Jupiter.',
+    day: null, massText: '16–19 ☉', kind: 'star', emissive: true, limb: true,
+    tex: 'betelgeuse.jpg', tint: 0xffffff, limbDark: '#3a0800',
   },
 };
 

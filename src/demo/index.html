@@ -292,6 +292,27 @@ body {
   justify-content: center;
 }
 .body.on .tag { display: flex; }
+.rowwrap { position: relative; display: flex; flex: none; }
+.rowwrap .body { flex: 1; min-width: 0; }
+body.sizes .rowwrap .body { padding-right: 66px; }
+.rowwrap .zoom {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--card-solid);
+  color: var(--dim);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, transform .15s;
+}
+.rowwrap .zoom:hover { color: #fff; background: var(--orange); border-color: var(--orange); transform: scale(1.08); }
 
 
 /* centre */

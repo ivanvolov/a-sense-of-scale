@@ -13,7 +13,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT, SGR_A_STAR, HELIOPAUSE, ASTEROID_BELT, KUIPER_BELT } from '../data.js';
+import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT, SGR_A_STAR, BETELGEUSE } from '../data.js';
 import { lengthStr, lightTime, clockFace } from '../units.js';
 import { FACTS } from './facts.js';
 
@@ -39,8 +39,8 @@ const scene = new THREE.Scene();
 // Two cameras: the perspective one for looking around, an orthographic one
 // for the side-on size comparison, where perspective would lie about which
 // sphere is bigger. `camera` is whichever is in use.
-// Far plane and dolly limit have to take the Solar System as an object:
-// its heliopause is 2.8 million Earth radii out.
+// Far plane and dolly limit have to take Betelgeuse: it is 83 000 Earth radii
+// across its own radius.
 const persp = new THREE.PerspectiveCamera(34, 1, 0.02, 1e9);
 persp.position.set(0, 1, 9);
 const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.02, 1e9);
@@ -167,22 +167,6 @@ function tex(name, srgb = true) {
 }
 const hi = (mat, slot, name, srgb = true) => { if (name) pendingHi.push({ mat, slot, name, srgb }); };
 
-/** A soft warm dot, for the Sun when it is a speck inside its own system. */
-function dotTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d');
-  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grad.addColorStop(0.0, 'rgba(255, 236, 190, 1)');
-  grad.addColorStop(0.3, 'rgba(255, 200, 110, 0.9)');
-  grad.addColorStop(1.0, 'rgba(255, 170, 80, 0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 128, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
 // -------------------------------------------------------------- bodies -----
 
 const SPHERE = new THREE.SphereGeometry(1, 96, 64);
@@ -241,79 +225,6 @@ const rimMaterial = (color, strength = 0.6, power = 3.0) => fresnelMaterial(
   `gl_FragColor = vec4(color, pow(1.0 - clamp(d, 0.0, 1.0), power) * strength);`,
 );
 
-/** A circle in the x–z plane: an orbit, seen edge-on from the front. */
-function flatCircle(radius, color, opacity, segments = 192) {
-  const pts = [];
-  for (let i = 0; i < segments; i++) {
-    const a = (i / segments) * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
-  }
-  return new THREE.LineLoop(
-    new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
-  );
-}
-
-/** A soft white disc, so belt points are round grains rather than squares. */
-let _grain = null;
-function grainTexture() {
-  if (_grain) return _grain;
-  const c = document.createElement('canvas');
-  c.width = c.height = 32;
-  const g = c.getContext('2d');
-  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.9)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 32, 32);
-  _grain = new THREE.CanvasTexture(c);
-  return _grain;
-}
-
-/**
- * A belt of small bodies in the x–z plane: an annulus of grains with the
- * vertical spread the real belt has (inclinations of ten degrees or so).
- */
-function belt(r0, r1, n, color, thick) {
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const u = Math.random();
-    const r = Math.sqrt(r0 * r0 + u * (r1 * r1 - r0 * r0));     // area-uniform
-    const y = (Math.random() + Math.random() + Math.random() - 1.5) * thick * r;
-    pos.set([Math.cos(a) * r, y, Math.sin(a) * r], i * 3);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({
-    color, size: 2.6, sizeAttenuation: false, map: grainTexture(), alphaTest: 0.2,
-    transparent: true, opacity: 0.9, depthWrite: false,
-  }));
-}
-
-/**
- * The Solar System as one object, in units of the heliopause radius, laid
- * flat like the planets' orbits really are: seen edge-on from the front,
- * opening up as the camera rises. The orbits, the two belts as grains of
- * rock and ice, the Sun as a speck, and the heliopause as a bare outline.
- */
-function solarSystemDisc() {
-  const g = new THREE.Group();
-  const H = HELIOPAUSE;
-  for (const p of PLANETS) g.add(flatCircle(p.a / H, 0x8a90a3, 0.85));
-  g.add(belt(ASTEROID_BELT[0] / H, ASTEROID_BELT[1] / H, 900, 0xb5a58f, 0.08));
-  g.add(belt(KUIPER_BELT[0] / H, KUIPER_BELT[1] / H, 3200, 0xa9b7c9, 0.3));
-  // The heliopause: a boundary, so just its outline, from any direction.
-  const bubble = new THREE.Mesh(SPHERE, rimMaterial('#8a7fe0', 1.3, 18));
-  bubble.renderOrder = 2;
-  g.add(bubble);
-  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTexture(), transparent: true, depthWrite: false }));
-  sun.scale.setScalar(0.035);
-  g.add(sun);
-  return g;
-}
-
 /** A body: group + mesh, plus the HTML label and marker that follow it. */
 function makeBody(name, rMetres, color) {
   const f = FACTS[name];
@@ -330,13 +241,17 @@ function makeBody(name, rMetres, color) {
     const rimGlow = new THREE.Mesh(SPHERE, rimMaterial(SGR_A_STAR.color, 0.45, 3.5));
     rimGlow.scale.setScalar(1.003);
     group.add(rimGlow);
-  } else if (f.kind === 'system') {
-    mesh = solarSystemDisc();
   } else if (f.emissive) {
     // The photosphere has a sharp edge. The corona is real but a millionth
     // as bright as the disc; the halo cameras add is not drawn.
-    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: 0xfff6e6 }));
+    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: f.tint ?? 0xfff6e6 }));
     hi(mesh.material, 'map', f.hi);
+    if (f.limbDark) {
+      // A red supergiant's edge is visibly darker than its middle.
+      const dark = new THREE.Mesh(SPHERE, rimMaterial(f.limbDark, 0.5, 2.2));
+      dark.scale.setScalar(1.00002);
+      group.add(dark);
+    }
   } else if (f.normal) {
     // Earth: relief, glossy oceans, and city lights that only show at night.
     const m = new THREE.MeshStandardMaterial({
@@ -366,9 +281,7 @@ function makeBody(name, rMetres, color) {
     hi(m, 'map', f.hi);
     if (f.bump && f.hi) hi(m, 'bumpMap', f.hi);
   }
-  // The system disc faces the camera and must not be turned edge-on by the
-  // slow spin every globe gets.
-  if (f.kind === 'system') group.add(mesh); else spin.add(mesh);
+  spin.add(mesh);
 
   if (f.clouds) {
     const clouds = new THREE.Mesh(SPHERE, new THREE.MeshLambertMaterial({
@@ -444,14 +357,12 @@ const SIZE_BODIES = [
   ['Moon', MOON.r, MOON.color],
   ...PLANETS.slice(3).map((p) => [p.name, p.r, p.color]),
   [SGR_A_STAR.name, SGR_A_STAR.r, SGR_A_STAR.color],
-  ['Solar System', HELIOPAUSE, '#8a6cff'],
+  [BETELGEUSE.name, BETELGEUSE.r, BETELGEUSE.color],
 ];
 
 const PRESETS = {
   home: ['Earth', 'Moon', 'Sun'],
-  planets: PLANETS.map((p) => p.name),
-  all: ['Sun', ...PLANETS.map((p) => p.name), 'Moon'],
-  beyond: ['Sun', SGR_A_STAR.name, 'Solar System'],
+  all: ['Sun', ...PLANETS.map((p) => p.name)],
 };
 
 const MODES = {
@@ -571,7 +482,7 @@ function setMode(id, variant) {
     state.picked = new Set(PRESETS.home);
     for (const b of state.bodies) { b.shown = false; b.size = 0; }
     layoutSizes(true);
-    setTip(null);
+    setTip('Drag to orbit, scroll to zoom. The magnifier on a body flies you in on it.');
   } else {
     setVariant(variant ?? def.variants[0][0], true);
     select(state.bodies[0], true);
@@ -613,19 +524,20 @@ function setTip(text) { el('tipText').textContent = text ?? TIP_DEFAULT; }
 
 /**
  * Lay the picked bodies in a row, smallest to largest, at true relative size.
- * The Sun, when picked, stands past the right end so only its limb is in
- * frame — unless it is the only thing picked, in which case it is the frame.
+ * The biggest star picked (the Sun, Betelgeuse) stands past the right end so
+ * only its limb is in frame — unless it is the only thing picked, in which
+ * case it is the frame.
  */
 function layoutSizes(instant = false) {
   const picked = state.bodies.filter((b) => state.picked.has(b.name));
   // Smallest to largest by footprint, so Saturn's rings end the row instead
   // of lying across Jupiter and Uranus. The Sun stands past the end as a
   // limb only while it is the biggest thing picked; next to the black hole
-  // or the whole Solar System it takes its place in the row like any globe.
+  // or Betelgeuse it takes its place in the row like any globe.
   const sorted = [...picked].sort((a, b) => a.ext - b.ext);
-  const sunIsLimb = sorted.length > 1 && sorted[sorted.length - 1].name === 'Sun';
-  const row = sunIsLimb ? sorted.slice(0, -1) : (sorted.length === 1 && sorted[0].name === 'Sun' ? [] : sorted);
-  const sun = picked.find((b) => b.name === 'Sun' && (sunIsLimb || sorted.length === 1));
+  const biggest = sorted[sorted.length - 1];
+  const star = biggest && biggest.facts.limb ? biggest : null;      // the Sun, or Betelgeuse, as a limb
+  const row = star && sorted.length > 1 ? sorted.slice(0, -1) : (star ? [] : sorted);
 
   let x = 0;
   let prev = null;
@@ -645,15 +557,15 @@ function layoutSizes(instant = false) {
   const rowW = Math.max(x, reach);
   let left = row.length ? -0.4 : 0;
   let right = row.length ? rowW + 0.4 : 0;
-  if (sun) {
+  if (star) {
     if (row.length) {
       const limb = rowW + Math.max(0.7, rowW * 0.08);
-      place.set(sun, limb + sun.r);
+      place.set(star, limb + star.r);
       right = limb + Math.max(1.1, rowW * 0.14);
     } else {
-      place.set(sun, 0);
-      left = -sun.r * 1.15;
-      right = sun.r * 1.15;
+      place.set(star, 0);
+      left = -star.r * 1.15;
+      right = star.r * 1.15;
     }
   }
 
@@ -661,8 +573,8 @@ function layoutSizes(instant = false) {
     const target = place.get(b);
     if (target != null) {
       if (!b.shown) {
-        // New arrival: drop in from above, or just swell up when it is the Sun.
-        const dropFrom = b.name === 'Sun' || b.r > 500 ? 0 : 3 + b.r * 2.5;
+        // New arrival: drop in from above, or just swell up when it is a star.
+        const dropFrom = b.facts.limb || b.r > 500 ? 0 : 3 + b.r * 2.5;
         b.pos.set(target, dropFrom, 0);
         b.size = 0;
       }
@@ -670,19 +582,19 @@ function layoutSizes(instant = false) {
       tweenSize(b, 1, instant ? 0.001 : 1000);
       b.shown = true;
     } else if (b.shown) {
-      tweenTo(b, new THREE.Vector3(b.pos.x, b.name === 'Sun' ? 0 : -(3 + b.r * 2.5), 0), 900);
+      tweenTo(b, new THREE.Vector3(b.pos.x, b.facts.limb ? 0 : -(3 + b.r * 2.5), 0), 900);
       tweenSize(b, 0, 700);
       b.shown = false;
     }
   }
 
   const width = Math.max(right - left, 4) * 1.08;
-  const center = new THREE.Vector3((left + right) / 2, (sun && !row.length ? 0 : 0.05), 0);
+  const center = new THREE.Vector3((left + right) / 2, (star && !row.length ? 0 : 0.05), 0);
   state.rowFrame = { center, width, el: 6, az: 0 };
   // Along the row: every centre sits on the axis, so the bodies stack into
   // nested discs, smallest nearest. Framed on the biggest planet; the Sun,
   // when picked, is the wall behind them all.
-  const big = row.length ? Math.max(1, ...row.map(full)) : (sun ? sun.r : 2);
+  const big = row.length ? Math.max(1, ...row.map(full)) : (star ? star.r : 2);
   state.endFrame = { center: new THREE.Vector3(first ?? 0, 0, 0), width: big * 2.4, el: 0, az: -90 };
   flyFrame(viewFrame(), instant ? 0 : 1500);
 }
@@ -770,6 +682,22 @@ function setPicked(names) {
   renderList();
   renderDock();
   renderOverview();
+}
+
+/**
+ * Fly in on one body, in whichever view is current: straight on and along the
+ * row stay orthographic and just re-frame; the free camera keeps its angle.
+ * A body that is not shown yet is added first.
+ */
+function zoomTo(b) {
+  if (!MODES[state.mode].multi) { select(b); return; }
+  if (!state.picked.has(b.name)) setPicked([...state.picked, b.name]);
+  if (!side) { flyToBody(b); return; }
+  const x = (b.tween ? b.tween.to : b.pos).x;
+  if (side === 'front') flyFrame({ center: new THREE.Vector3(x, 0, 0), width: b.full * 2 * 1.25, el: 0, az: 0 }, 1200);
+  // Along the row the target stays at the small end, so the smaller bodies
+  // remain in front of the camera as nested discs.
+  else flyFrame({ ...state.endFrame, width: b.full * 2 * 1.2 }, 1200);
 }
 
 // -------------------------------------------------------------- camera -----
@@ -1023,7 +951,7 @@ function select(b, instant = false) {
     setTimeout(() => { fill(); head.classList.remove('swap'); }, 300);
     flyToBody(b);
   }
-  for (const btn of el('list').children) btn.classList.toggle('on', btn.dataset.name === b.name);
+  for (const btn of el('list').querySelectorAll('.body')) btn.classList.toggle('on', btn.dataset.name === b.name);
   renderDots();
 }
 
@@ -1032,6 +960,8 @@ function renderList() {
   list.innerHTML = '';
   const multi = MODES[state.mode].multi;
   for (const b of state.bodies) {
+    const row = document.createElement('div');
+    row.className = 'rowwrap';
     const btn = document.createElement('button');
     const on = multi ? state.picked.has(b.name) : b === state.selected;
     btn.className = 'body' + (on ? ' on' : '');
@@ -1040,7 +970,17 @@ function renderList() {
       + `<span><b>${b.name}</b><small>${multi ? `⌀ ${lengthStr(b.r * ER * 2)}` : b.facts.epithet}</small></span>`
       + `<span class="tag">${multi ? 'Shown' : 'Selected'}</span>`;
     btn.onclick = () => select(b);
-    list.append(btn);
+    row.append(btn);
+    if (multi) {
+      const zoom = document.createElement('button');
+      zoom.className = 'zoom';
+      zoom.title = `Fly in on ${b.name}`;
+      zoom.setAttribute('aria-label', `Zoom to ${b.name}`);
+      zoom.innerHTML = '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.8 12.8 17 17M6 8.5h5M8.5 6v5"/></svg>';
+      zoom.onclick = () => zoomTo(b);
+      row.append(zoom);
+    }
+    list.append(row);
   }
 }
 
@@ -1062,12 +1002,11 @@ function renderDock() {
   if (def.multi) {
     const same = (names) => names.length === state.picked.size && names.every((n) => state.picked.has(n));
     add('Earth · Moon · Sun', same(PRESETS.home), () => setPicked(PRESETS.home));
-    add('Planets', same(PRESETS.planets), () => setPicked(PRESETS.planets));
     add('Sun & planets', same(PRESETS.all), () => setPicked(PRESETS.all));
-    add('Beyond', same(PRESETS.beyond), () => setPicked(PRESETS.beyond)).title = 'The Sun, the black hole at the galactic centre, and the whole Solar System';
     sep();
     add('Clear', false, () => setPicked([]));
     sep();
+    add('<i>⤢</i>Fit', false, () => flyFrame(viewFrame(), 1200)).title = 'Frame everything that is shown';
     add('<i>▭</i>Front', side === 'front', () => setSide('front'), 'tog').title = 'Straight at the row, no perspective. Drag or scroll to leave.';
     add('<i>◎</i>Along', side === 'end', () => setSide('end'), 'tog').title = 'Down the row from the small end: nested discs. Drag or scroll to leave.';
     return;
@@ -1303,6 +1242,13 @@ function frame() {
   // The labels project through the camera's world matrix; refresh it now, or
   // they are placed with last frame's camera and trail behind a drag.
   camera.updateMatrixWorld(true);
+  // An orthographic depth buffer is linear: with a far plane of 1e9 one step is
+  // 60 scene units and bodies a few units apart z-fight (a far globe shows
+  // through a near one). Keep the range just around what is on screen.
+  if (camera === ortho && state.rowFrame) {
+    const far = camera.position.distanceTo(controls.target) + state.rowFrame.width * 1.5 + 10;
+    if (Math.abs(ortho.far - far) > far * 0.01) { ortho.far = far; ortho.updateProjectionMatrix(); }
+  }
   stars.position.copy(camera.position);
   placePulseArrow(h);
   {
@@ -1359,6 +1305,6 @@ requestAnimationFrame(frame);
 
 // Handy for the screenshot tool and the console.
 window.__demo = {
-  setMode, setVariant, select, startPulse, setPicked, togglePick, setSide, setTheme, pulseRadius, compress, U,
+  setMode, setVariant, select, zoomTo, startPulse, setPicked, togglePick, setSide, setTheme, pulseRadius, compress, U,
   state, pulse, controls, flyToBody, renderer, scene, get camera() { return camera; }, get side() { return side; },
 };
