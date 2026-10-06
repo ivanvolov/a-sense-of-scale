@@ -996,6 +996,7 @@ function select(b, instant = false) {
       : '';
     el('blurb').textContent = '';
     el('chips').innerHTML = '';
+    head.classList.toggle('empty', !p);
   };
   if (instant) fill();
   else {
