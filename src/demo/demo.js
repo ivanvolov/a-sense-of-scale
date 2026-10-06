@@ -13,7 +13,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT } from '../data.js';
+import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT, SGR_A_STAR, HELIOPAUSE, ASTEROID_BELT, KUIPER_BELT } from '../data.js';
 import { lengthStr, lightTime, clockFace } from '../units.js';
 import { FACTS } from './facts.js';
 
@@ -39,9 +39,11 @@ const scene = new THREE.Scene();
 // Two cameras: the perspective one for looking around, an orthographic one
 // for the side-on size comparison, where perspective would lie about which
 // sphere is bigger. `camera` is whichever is in use.
-const persp = new THREE.PerspectiveCamera(34, 1, 0.02, 2e7);
+// Far plane and dolly limit have to take the Solar System as an object:
+// its heliopause is 2.8 million Earth radii out.
+const persp = new THREE.PerspectiveCamera(34, 1, 0.02, 1e9);
 persp.position.set(0, 1, 9);
-const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.02, 2e7);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.02, 1e9);
 let camera = persp;
 let orthoW = 10;          // frustum width of the ortho camera, scene units
 
@@ -51,7 +53,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.rotateSpeed = 0.55;
 controls.minDistance = 0.3;
-controls.maxDistance = 6e6;
+controls.maxDistance = 3e8;
 controls.addEventListener('start', () => {
   camTween = null;
   if (follow) { follow = false; renderDock(); }
@@ -165,20 +167,17 @@ function tex(name, srgb = true) {
 }
 const hi = (mat, slot, name, srgb = true) => { if (name) pendingHi.push({ mat, slot, name, srgb }); };
 
-function coronaTexture() {
+/** A soft warm dot, for the Sun when it is a speck inside its own system. */
+function dotTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 512;
+  c.width = c.height = 128;
   const g = c.getContext('2d');
-  const grad = g.createRadialGradient(256, 256, 0, 256, 256, 256);
-  // A modest bloom just past the limb: what a camera does to anything this
-  // bright. The real corona is a millionth as bright as the disc.
-  grad.addColorStop(0.0, 'rgba(255, 214, 150, 0.95)');
-  grad.addColorStop(0.56, 'rgba(255, 190, 110, 0.8)');
-  grad.addColorStop(0.64, 'rgba(255, 170, 80, 0.35)');
-  grad.addColorStop(0.82, 'rgba(255, 160, 70, 0.05)');
-  grad.addColorStop(1.0, 'rgba(255, 160, 70, 0)');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0.0, 'rgba(255, 236, 190, 1)');
+  grad.addColorStop(0.3, 'rgba(255, 200, 110, 0.9)');
+  grad.addColorStop(1.0, 'rgba(255, 170, 80, 0)');
   g.fillStyle = grad;
-  g.fillRect(0, 0, 512, 512);
+  g.fillRect(0, 0, 128, 128);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -213,6 +212,83 @@ const atmoMaterial = (color) => new THREE.ShaderMaterial({
     }`,
 });
 
+/** A glow that thickens towards the limb, seen from outside (FrontSide). */
+const rimMaterial = (color, strength = 0.6, power = 3.0) => new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength }, power: { value: power } },
+  vertexShader: `
+    varying vec3 vN; varying vec3 vP;
+    void main() {
+      vN = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      vP = mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: `
+    uniform vec3 color; uniform float strength; uniform float power; varying vec3 vN; varying vec3 vP;
+    void main() {
+      float d = clamp(dot(normalize(vN), normalize(-vP)), 0.0, 1.0);
+      gl_FragColor = vec4(color, pow(1.0 - d, power) * strength);
+    }`,
+});
+
+/** A circle in the x–y plane, facing the front camera. */
+function faceCircle(radius, color, opacity, segments = 192) {
+  const pts = [];
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0));
+  }
+  return new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
+  );
+}
+
+/** A belt of small bodies: an annulus of dots with a little thickness. */
+function belt(r0, r1, n, color, thick) {
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    // Area-uniform in the annulus, then pushed towards the middle a bit.
+    const u = Math.random();
+    const r = Math.sqrt(r0 * r0 + u * (r1 * r1 - r0 * r0));
+    const z = (Math.random() + Math.random() + Math.random() - 1.5) * thick;
+    pos.set([Math.cos(a) * r, Math.sin(a) * r, z], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({
+    color, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false,
+  }));
+}
+
+/**
+ * The Solar System as one object, in units of the heliopause radius: the
+ * planets' orbits, the two belts, the Sun as a speck, and the heliosphere
+ * bubble around it all. Faces the front camera; edge-on from the side.
+ */
+function solarSystemDisc() {
+  const g = new THREE.Group();
+  const H = HELIOPAUSE;
+  for (const p of PLANETS) g.add(faceCircle(p.a / H, 0x7d74d8, 0.9));
+  g.add(belt(ASTEROID_BELT[0] / H, ASTEROID_BELT[1] / H, 900, 0x2fa7dc, 0.003));
+  g.add(belt(KUIPER_BELT[0] / H, KUIPER_BELT[1] / H, 2600, 0x8e7fe0, 0.03));
+  // The heliosphere: a faint fill and a bright edge, see-through in the middle.
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 128), new THREE.MeshBasicMaterial({
+    color: 0x7a5fe0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false,
+  }));
+  g.add(disc);
+  const bubble = new THREE.Mesh(SPHERE, rimMaterial('#8a6cff', 0.95, 2.6));
+  bubble.renderOrder = 2;
+  g.add(bubble);
+  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTexture(), transparent: true, depthWrite: false }));
+  sun.scale.setScalar(0.035);
+  g.add(sun);
+  return g;
+}
+
 /** A body: group + mesh, plus the HTML label and marker that follow it. */
 function makeBody(name, rMetres, color) {
   const f = FACTS[name];
@@ -222,16 +298,25 @@ function makeBody(name, rMetres, color) {
   group.add(spin);
   let mesh;
 
-  if (f.emissive) {
-    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: 0xfff6e6 }));
-    // Depth-tested so the halo stays behind anything in front of the Sun
-    // instead of tinting it; it only shows where there is sky.
-    const corona = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: coronaTexture(), transparent: true, depthWrite: false, depthTest: true,
+  if (f.kind === 'blackhole') {
+    // The event horizon: unlit black. A warm rim stands in for the lensed
+    // light bending round it, and a thin ring marks the shadow's edge, 2.6
+    // radii out, where the Event Horizon Telescope sees it.
+    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    const rimGlow = new THREE.Mesh(SPHERE, rimMaterial(SGR_A_STAR.color, 0.7, 2.2));
+    rimGlow.scale.setScalar(1.003);
+    group.add(rimGlow);
+    const s = SGR_A_STAR.shadow;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(s - 0.06, s + 0.06, 192), new THREE.MeshBasicMaterial({
+      color: SGR_A_STAR.color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false,
     }));
-    corona.scale.setScalar(1.75);
-    corona.renderOrder = -2;
-    group.add(corona);
+    group.add(ring);
+  } else if (f.kind === 'system') {
+    mesh = solarSystemDisc();
+  } else if (f.emissive) {
+    // The photosphere has a sharp edge. The corona is real but a millionth
+    // as bright as the disc; the halo cameras add is not drawn.
+    mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({ map: tex(f.tex), color: 0xfff6e6 }));
     hi(mesh.material, 'map', f.hi);
   } else if (f.normal) {
     // Earth: relief, glossy oceans, and city lights that only show at night.
@@ -262,7 +347,9 @@ function makeBody(name, rMetres, color) {
     hi(m, 'map', f.hi);
     if (f.bump && f.hi) hi(m, 'bumpMap', f.hi);
   }
-  spin.add(mesh);
+  // The system disc faces the camera and must not be turned edge-on by the
+  // slow spin every globe gets.
+  if (f.kind === 'system') group.add(mesh); else spin.add(mesh);
 
   if (f.clouds) {
     const clouds = new THREE.Mesh(SPHERE, new THREE.MeshLambertMaterial({
@@ -310,11 +397,15 @@ function makeBody(name, rMetres, color) {
   marker.style.background = color;
   el('labels').append(marker, label);
 
+  // Everything drawn around the globe (rings, the shadow ring), in radii.
+  const outer = f.ring ? f.ring.outer : (f.halo ?? 1);
   return {
     name, r, color, facts: f, group, spin, label, marker,
-    // Horizontal half-extent used to space the row. Saturn gets a third of
-    // its ring span: the rings may overlap a neighbour, the globes may not.
-    ext: f.ring ? r * (1 + (f.ring.outer - 1) / 3) : r,
+    // Horizontal half-extent used to space the row. Saturn's rings get a
+    // third of their span (they may overlap a neighbour, the globes may
+    // not); a shadow ring is a full circle and gets all of it.
+    ext: f.ring ? r * (1 + (outer - 1) / 3) : r * outer,
+    full: r * outer,
     pos: new THREE.Vector3(), tween: null, size: 1, sizeTween: null, shown: true,
   };
 }
@@ -333,12 +424,15 @@ const SIZE_BODIES = [
   ...PLANETS.slice(0, 3).map((p) => [p.name, p.r, p.color]),
   ['Moon', MOON.r, MOON.color],
   ...PLANETS.slice(3).map((p) => [p.name, p.r, p.color]),
+  [SGR_A_STAR.name, SGR_A_STAR.r, SGR_A_STAR.color],
+  ['Solar System', HELIOPAUSE, '#8a6cff'],
 ];
 
 const PRESETS = {
   home: ['Earth', 'Moon', 'Sun'],
   planets: PLANETS.map((p) => p.name),
-  all: SIZE_BODIES.map((b) => b[0]),
+  all: ['Sun', ...PLANETS.map((p) => p.name), 'Moon'],
+  beyond: ['Sun', SGR_A_STAR.name, 'Solar System'],
 };
 
 const MODES = {
@@ -513,7 +607,7 @@ function layoutSizes(instant = false) {
   let x = 0;
   let prev = null;
   const place = new Map();
-  const full = (b) => (b.facts.ring ? b.r * b.facts.ring.outer : b.r);
+  const full = (b) => b.full;
   let reach = 0;      // rightmost pixel of anything, rings included
   let first = null;   // x of the smallest body: where the along-the-row view looks from
   for (const b of row) {
@@ -959,7 +1053,8 @@ function renderDock() {
     const same = (names) => names.length === state.picked.size && names.every((n) => state.picked.has(n));
     add('Earth · Moon · Sun', same(PRESETS.home), () => setPicked(PRESETS.home));
     add('Planets', same(PRESETS.planets), () => setPicked(PRESETS.planets));
-    add('All', same(PRESETS.all), () => setPicked(PRESETS.all));
+    add('Sun & planets', same(PRESETS.all), () => setPicked(PRESETS.all));
+    add('Beyond', same(PRESETS.beyond), () => setPicked(PRESETS.beyond)).title = 'The Sun, the black hole at the galactic centre, and the whole Solar System';
     sep();
     add('Clear', false, () => setPicked([]));
     sep();
@@ -1015,12 +1110,13 @@ function renderOverview() {
       const f = b.facts;
       const d = b.r * ER * 2;
       const xe = b.r / U(EARTH.r);
-      const day = f.day >= 48 ? `${(f.day / 24).toFixed(f.day / 24 < 10 ? 1 : 0)} d` : `${f.day} h`;
-      const mass = f.mass >= 1000 ? `${Math.round(f.mass / 1000)} 000 ⊕` : `${fmt(f.mass, 3)} ⊕`;
+      const day = f.day == null ? null : f.day >= 48 ? `${(f.day / 24).toFixed(f.day / 24 < 10 ? 1 : 0)} d` : `${f.day} h`;
+      const mass = f.massText ?? (f.mass >= 1000 ? `${Math.round(f.mass / 1000)} 000 ⊕` : `${fmt(f.mass, 3)} ⊕`);
+      const xeText = xe >= 1000 ? fmt(Math.round(xe), 0) : xe >= 1 ? fmt(xe, xe >= 10 ? 1 : 2) : fmt(xe, 3);
       return `<div class="cmp">
         <span class="thumb" style="background-image:url(${TEX_BASE}${f.tex})"></span>
-        <span><b>${b.name}</b><small>${mass} · spins in ${day}</small></span>
-        <span class="num"><b>${lengthStr(d)}</b><small>${xe >= 1 ? fmt(xe, xe >= 10 ? 1 : 2) : fmt(xe, 3)} × Earth</small></span>
+        <span><b>${b.name}</b><small>${[mass, day && `spins in ${day}`].filter(Boolean).join(' · ')}</small></span>
+        <span class="num"><b>${lengthStr(d)}</b><small>${xeText} × Earth</small></span>
         <span class="scale" style="transform:scaleX(${Math.max(b.r / big, 0.004)})"></span>
       </div>`;
     }).join('');

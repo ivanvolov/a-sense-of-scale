@@ -43,6 +43,20 @@ export const MOON_ORBIT = {
 export const AU = 149597870.7 * KM;
 export const C_LIGHT = 299792458;   // m/s
 
+/**
+ * The black hole at the centre of the Milky Way. `r` is the Schwarzschild
+ * radius, 2GM/c² for 4.3 million solar masses (GRAVITY Collaboration 2022):
+ * the event horizon, 18 Suns across. Its shadow as the EHT sees it is about
+ * 2.6 of these radii.
+ */
+export const SGR_A_STAR = { name: 'Sagittarius A*', r: 1.27e10, shadow: 2.6, color: '#ffb36b' };
+
+/** The Solar System as an object: out to the heliopause, where the solar
+ *  wind stalls against interstellar space. Voyager 1 crossed it at 121.6 AU. */
+export const HELIOPAUSE = 120 * AU;
+export const ASTEROID_BELT = [2.2 * AU, 3.2 * AU];
+export const KUIPER_BELT = [30 * AU, 50 * AU];
+
 /** Surface-to-surface clearance between Earth and Moon at a given centre distance. */
 export const gap = (centreDistance) => centreDistance - EARTH.r - MOON.r;
 

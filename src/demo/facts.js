@@ -68,6 +68,18 @@ export const FACTS = {
     gravity: 1.14, day: 16.1, year: 60190, temp: -200, moons: 16, mass: 17.1,
     tex: 'neptune.jpg',
   },
+  'Sagittarius A*': {
+    epithet: 'The Galactic Anchor',
+    blurb: 'The black hole at the centre of the Milky Way: 4.3 million Suns inside an event horizon 18 Suns across.',
+    day: null, massText: '4.3 million ☉', kind: 'blackhole', halo: 2.7,
+    tex: 'sgr_a.svg',
+  },
+  'Solar System': {
+    epithet: 'Out to the Heliopause',
+    blurb: 'Everything the solar wind reaches: planets, the asteroid belt, the Kuiper belt, and the bubble that ends 120 AU out.',
+    day: null, massText: '1.0 ☉ · almost all of it the Sun', kind: 'system',
+    tex: 'solar_system.svg',
+  },
 };
 
 /** Fact-sheet rows for the overview card, in display order. */
