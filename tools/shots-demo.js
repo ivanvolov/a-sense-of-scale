@@ -30,6 +30,9 @@ const SHOTS = [
   ['h-ems', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['dark', 'side', 1500], 2500],
   ['h-em-bh', 'earth-moon', null, ['Earth', 'Moon', 'Sagittarius A*'], ['dark', 'side', 1500], 2800],
   ['h-esb', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], ['dark', 'side', 1500], 2800],
+  ['o1-ems', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['dark', 'wide'], 2500],
+  ['o2-emsS', 'earth-moon', null, ['Earth', 'Moon', 'Sun', 'Saturn'], ['dark', 'wide'], 2500],
+  ['o3-esb', 'earth-moon', null, ['Earth', 'Moon', 'Sun', 'Saturn', 'Betelgeuse'], ['dark', 'wide'], 2500],
   ['moon-earth-dark', 'earth-moon', null, ['Earth', 'Moon'], ['dark'], 2500],
   ['moon-earth', 'earth-moon', null, ['Earth', 'Moon'], [], 2500],
   ['sizes-home', 'earth-moon', null, null, [], 2500],
@@ -93,6 +96,26 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
     else if (s === 'end') await page.evaluate(() => window.__demo.setSide('end'));
     else if (s === 'light') await page.evaluate(() => window.__demo.startPulse());
     else if (s === 'dark') await page.evaluate(() => window.__demo.setTheme('dark'));
+    else if (s === 'wide') {
+      await page.locator('button', { hasText: 'Fit' }).first().click();
+      await page.waitForTimeout(1600);
+      await page.evaluate(() => {
+        const d = window.__demo, cam = d.camera;
+        let x0 = 1e30, x1 = -1e30, yTop = -1e30, yBot = 1e30;
+        for (const b of d.state.bodies.filter((b) => b.shown)) { const r = b.r * b.size; x0 = Math.min(x0, b.pos.x - r); x1 = Math.max(x1, b.pos.x + r); yTop = Math.max(yTop, b.pos.y + r); yBot = Math.min(yBot, b.pos.y - r); }
+        const t = d.controls.target, dir = cam.position.clone().sub(t).normalize();
+        const w = Math.max(x1 - x0, (yTop - yBot) * cam.aspect) * 1.7;
+        const dist = (w / 2) / Math.tan(Math.atan(Math.tan((cam.fov * Math.PI) / 360) * cam.aspect));
+        t.set((x0 + x1) / 2, (yTop + yBot) / 2, 0);
+        cam.position.copy(t).addScaledVector(dir, dist);
+        d.controls.update();
+      });
+    }
+    else if (Array.isArray(s) && s[0] === 'out') await page.evaluate(([, k]) => {
+      const d = window.__demo, t = d.controls.target;
+      d.camera.position.sub(t).multiplyScalar(k).add(t);
+      d.controls.update();
+    }, s);
     else if (Array.isArray(s)) await page.evaluate(([, n]) => window.__demo.zoomTo(window.__demo.state.bodies.find((b) => b.name === n)), s);
     else if (typeof s === 'number') await page.waitForTimeout(s);
   }

@@ -170,7 +170,7 @@ function updateFabric() {
   const list = state.bodies.filter((b) => b.shown && b.size > 0.02 && massE(b) > 0)
     .sort((a, b) => massE(b) / b.r - massE(a) / a.r).slice(0, WELLS);
   if (!list.length) { fabric.visible = false; return; }
-  const top = list[0], phiMax = massE(top) / top.r, H = top.r * 1.4;
+  const top = list[0], phiMax = massE(top) / top.r, big = Math.max(...list.map((b) => b.r)), H = big * 1.4;
   const u = fabric.material.uniforms;
   let low = Infinity, reach = 0;
   u.uWells.value.forEach((w, i) => {
@@ -182,8 +182,8 @@ function updateFabric() {
     reach = Math.max(reach, Math.abs(b.pos.x) + b.r);
   });
   u.uBase.value = low;
-  u.uCell.value = Math.max(0.25, top.r * 0.45);
-  u.uSize.value = Math.max(30, reach * 2.5);
+  u.uCell.value = Math.max(0.25, big * 0.45);
+  u.uSize.value = Math.max(30, reach * 3.5, big * 8);
 }
 
 // ---------------------------------------------------------------- theme ----
