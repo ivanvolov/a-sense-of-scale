@@ -107,6 +107,79 @@ const stars = (() => {
   return p;
 })();
 
+
+// Dark theme only: a spacetime grid under the row of globes, dipping into a
+// well under each one (depth and width follow the radius).
+const WELLS = 6;
+const fabric = (() => {
+  const geo = new THREE.PlaneGeometry(2, 2, 240, 240);
+  geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uWells: { value: Array.from({ length: WELLS }, () => new THREE.Vector4()) }, uBase: { value: 0 }, uSize: { value: 1 }, uCell: { value: 1 } },
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      uniform vec4 uWells[${WELLS}]; uniform float uBase; uniform float uSize;
+      varying vec2 vXZ; varying float vDip;
+      void main() {
+        vec3 p = position * uSize;
+        float dip = 0.0;
+        for (int i = 0; i < ${WELLS}; i++) {
+          vec4 w = uWells[i];
+          if (w.w <= 0.0) continue;
+          float d = length(p.xz - w.xz);
+          dip += w.w * 1.6 / sqrt(1.0 + pow(d / (w.w * 1.2), 2.0));
+        }
+        vXZ = p.xz; vDip = dip;
+        p.y = uBase - dip;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform float uCell; uniform float uSize;
+      varying vec2 vXZ; varying float vDip;
+      void main() {
+        #include <logdepthbuf_fragment>
+        vec2 g = vXZ / uCell;
+        vec2 fw = fwidth(g) + 1e-5;
+        vec2 l = abs(fract(g - 0.5) - 0.5) / fw;
+        float line = 1.0 - clamp(min(l.x, l.y) - 0.4, 0.0, 1.0);
+        float edge = 1.0 - smoothstep(0.25, 1.0, length(vXZ) / uSize);
+        float a = line * edge * (0.12 + 0.45 * clamp(vDip / (uCell * 2.0), 0.0, 1.0));
+        gl_FragColor = vec4(0.30, 0.85, 0.72, a);
+      }`,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.frustumCulled = false; m.visible = false; m.renderOrder = -5;
+  scene.add(m);
+  return m;
+})();
+function updateFabric() {
+  const on = theme === 'dark' && MODES[state.mode].multi && !state.side;
+  fabric.visible = on;
+  if (!on) return;
+  const wells = fabric.material.uniforms.uWells.value;
+  const list = state.bodies.filter((b) => b.shown && b.r * b.size < 20 && !b.facts.kind).sort((a, b) => b.r - a.r).slice(0, WELLS);
+  if (!list.length) { fabric.visible = false; return; }
+  let low = Infinity, reach = 0;
+  wells.forEach((w, i) => {
+    const b = list[i];
+    if (!b) { w.set(0, 0, 0, 0); return; }
+    const r = b.r * b.size;
+    w.set(b.pos.x, b.pos.y, b.pos.z, r);
+    low = Math.min(low, b.pos.y - r * 1.15);
+    reach = Math.max(reach, Math.abs(b.pos.x) + r);
+  });
+  const u = fabric.material.uniforms;
+  u.uBase.value = low;
+  u.uCell.value = Math.max(0.25, list[0].r * list[0].size * 0.45);
+  u.uSize.value = Math.max(30, reach * 2.5);
+}
+
 // ---------------------------------------------------------------- theme ----
 
 const THEMES = {
@@ -1391,6 +1464,7 @@ function frame() {
     if (Math.abs(ortho.far - far) > far * 0.01) { ortho.far = far; ortho.updateProjectionMatrix(); }
   }
   stars.position.copy(camera.position);
+  updateFabric();
   placePulseArrow(h);
   {
     const earth = state.bodies.find((b) => b.name === 'Earth');

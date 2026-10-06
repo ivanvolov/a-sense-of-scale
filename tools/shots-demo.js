@@ -23,6 +23,7 @@ const SHOTS = [
   ['moon-dark', 'earth-moon', null, ['Moon'], ['dark'], 2500],
   ['moon-zoom', 'earth-moon', null, ['Moon'], [['zoom', 'Moon'], 2200], 1500],
   ['moon-zoom-dark', 'earth-moon', null, ['Moon'], ['dark', ['zoom', 'Moon'], 2200], 1500],
+  ['moon-earth-dark', 'earth-moon', null, ['Earth', 'Moon'], ['dark'], 2500],
   ['moon-earth', 'earth-moon', null, ['Earth', 'Moon'], [], 2500],
   ['sizes-home', 'earth-moon', null, null, [], 2500],
   ['sizes-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], [], 2800],
