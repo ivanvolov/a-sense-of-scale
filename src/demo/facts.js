@@ -36,7 +36,7 @@ export const FACTS = {
     epithet: 'The Quiet Companion',
     blurb: 'A quarter of Earth across, thirty Earths away. Almost every drawing puts it far too close.',
     gravity: 0.166, day: 708.7, year: 27.3, temp: -20, moons: null, mass: 0.0123,
-    tex: 'moon.jpg', hi: 'moon_4k.jpg', bump: 0.02,
+    tex: 'moon.jpg', hi: 'moon_4k.jpg', bump: 0.07, craters: true,
   },
   Mars: {
     epithet: 'The Rusted World',

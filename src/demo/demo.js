@@ -273,6 +273,43 @@ const supergiantMaterial = () => new THREE.ShaderMaterial({
     }`,
 });
 
+
+/**
+ * Airless-body grading: maria cool and dark, highlands warm and bright, a
+ * little more contrast, a fine 3D regolith grain that only appears once you
+ * are zoomed in, and a faint cool earthshine on the night side.
+ */
+function regolith(m) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uSunR = uSun;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vObj;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvObj = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vObj; uniform vec3 uSunR;
+        float h31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float vn(vec3 x) {
+          vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
+        }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec3 qo = normalize(vObj);
+        float px = fwidth(qo.x) + fwidth(qo.y) + fwidth(qo.z) + 1e-6;
+        float grain = vn(qo * 260.0) * 0.5 + vn(qo * 620.0) * 0.3 + vn(qo * 1500.0) * 0.2;
+        diffuseColor.rgb *= 1.0 + (grain - 0.5) * 0.5 * (1.0 - smoothstep(0.002, 0.006, px));
+        float lum = dot(diffuseColor.rgb, vec3(0.333));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.88, 0.95, 1.10), smoothstep(0.40, 0.16, lum));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.10, 1.0, 0.88), smoothstep(0.30, 0.62, lum));
+        diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.18)) * 1.18;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance += diffuseColor.rgb * vec3(0.10, 0.15, 0.26) * 0.20
+          * (1.0 - smoothstep(-0.12, 0.2, dot(normalize(vNormal), normalize(uSunR))));`);
+  };
+  m.customProgramCacheKey = () => 'regolith';
+}
+
 /** A body: group + mesh, plus the HTML label and marker that follow it. */
 function makeBody(name, rMetres, color) {
   const f = FACTS[name];
@@ -329,6 +366,7 @@ function makeBody(name, rMetres, color) {
   } else {
     const m = new THREE.MeshStandardMaterial({ map: tex(f.tex), roughness: 0.92, metalness: 0 });
     if (f.bump) { m.bumpMap = tex(f.tex); m.bumpScale = f.bump; }
+    if (f.craters) regolith(m);
     mesh = new THREE.Mesh(SPHERE, m);
     hi(m, 'map', f.hi);
     if (f.bump && f.hi) hi(m, 'bumpMap', f.hi);
