@@ -37,11 +37,11 @@ await page.waitForTimeout(4000);
 
 await page.click('#dock button:nth-of-type(2)');          // The planets
 await page.waitForTimeout(1800);
-await page.click('#dock button.tog:nth-of-type(1)');       // Front
+await page.locator('#dock button.tog').nth(0).click();    // Front
 await page.waitForTimeout(1800);
 console.log('front ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true));
 await page.screenshot({ path: path.join(OUT, 'live-compare.png') });
-await page.click('#dock button.tog:nth-of-type(2)');       // Along
+await page.locator('#dock button.tog').nth(1).click();    // Along
 await page.waitForTimeout(1800);
 console.log('along ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true && window.__demo.side === 'end'));
 await page.screenshot({ path: path.join(OUT, 'live-along.png') });
