@@ -71,13 +71,13 @@ export const FACTS = {
   'Sagittarius A*': {
     epithet: 'The Galactic Anchor',
     blurb: 'The black hole at the centre of the Milky Way: 4.3 million Suns inside an event horizon 18 Suns across.',
-    day: null, massText: '4.3 million ☉', kind: 'blackhole',
+    day: null, massText: '4.3 million ☉', massE: 1.43e12, kind: 'blackhole',
     tex: 'sgr_a.svg',
   },
   Betelgeuse: {
     epithet: 'The Red Supergiant',
     blurb: 'A red supergiant 550 light-years away, about 760 Suns across. In the Sun\'s place it would swallow Mars and the whole asteroid belt and stop just short of Jupiter.',
-    day: null, massText: '16–19 ☉', kind: 'star', emissive: true, limb: true,
+    day: null, massText: '16–19 ☉', massE: 5.8e6, kind: 'star', emissive: true, limb: true,
     tex: 'betelgeuse.jpg', proc: true, limbDark: '#3a0800',
   },
 };

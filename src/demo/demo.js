@@ -108,37 +108,83 @@ const stars = (() => {
 })();
 
 
-// Dark theme only: a grid far behind everything that bends round the biggest
-// body on screen like light past a mass. It works at any scale mix, which a
-// grid lying on a floor with a well under each globe cannot.
-const lensGrid = (() => {
+
+// Dark theme only: a sheet under the globes with a well below each one. Depth
+// follows the gravitational potential at the surface, GM/(R c^2): the most
+// compact body in the picture sets the scale, so the Moon beside the Earth
+// dips a little less, and next to a black hole they are all but flat. The
+// power 0.3 keeps small neighbours visible without reordering anyone.
+const WELLS = 6;
+const fabric = (() => {
+  const geo = new THREE.PlaneGeometry(2, 2, 240, 240);
+  geo.rotateX(-Math.PI / 2);
   const mat = new THREE.ShaderMaterial({
-    // Not 'transparent': that would draw it after the globes, over them.
-    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-    transparent: false, depthTest: false, depthWrite: false,
-    uniforms: { uC: { value: new THREE.Vector2() }, uR: { value: 100 }, uRes: { value: new THREE.Vector2(1, 1) }, uCell: { value: 56 } },
-    vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.9999, 1.0); }',
-    fragmentShader: `
-      uniform vec2 uC; uniform float uR; uniform vec2 uRes; uniform float uCell;
+    transparent: true, depthWrite: false,
+    uniforms: { uW: { value: new Array(WELLS).fill(1) }, uWells: { value: Array.from({ length: WELLS }, () => new THREE.Vector4()) }, uBase: { value: 0 }, uSize: { value: 1 }, uCell: { value: 1 } },
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      uniform vec4 uWells[${WELLS}]; uniform float uW[${WELLS}]; uniform float uBase; uniform float uSize;
+      varying vec2 vXZ; varying float vDip;
       void main() {
-        vec2 p = gl_FragCoord.xy, d = p - uC;
-        float r = max(length(d), 1e-3);
-        float rs = max(r - 0.6 * uR * uR / r, 0.0);
-        vec2 g = (uC + d * (rs / r)) / uCell;
-        vec2 fw = fwidth(g) + 1e-4;
+        vec3 p = position * uSize;
+        float dip = 0.0;
+        for (int i = 0; i < ${WELLS}; i++) {
+          vec4 w = uWells[i];
+          if (w.w <= 0.0) continue;
+          float d = length(p.xz - w.xz);
+          dip += w.w / sqrt(1.0 + pow(d / uW[i], 2.0));
+        }
+        vXZ = p.xz; vDip = dip;
+        p.y = uBase - dip;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform float uCell; uniform float uSize;
+      varying vec2 vXZ; varying float vDip;
+      void main() {
+        #include <logdepthbuf_fragment>
+        vec2 g = vXZ / uCell;
+        vec2 fw = fwidth(g) + 1e-5;
         vec2 l = abs(fract(g - 0.5) - 0.5) / fw;
-        float line = 1.0 - clamp(min(l.x, l.y) - 0.5, 0.0, 1.0);
-        float near = exp(-max(r - uR, 0.0) / (0.7 * uR));
-        float vig = 1.0 - smoothstep(0.35, 0.95, length(p / uRes - 0.5) * 1.5);
-        float a = line * vig * (0.10 + 0.5 * near) * smoothstep(0.55 * uR, 1.0 * uR, r);
+        float line = 1.0 - clamp(min(l.x, l.y) - 0.4, 0.0, 1.0);
+        float edge = 1.0 - smoothstep(0.25, 1.0, length(vXZ) / uSize);
+        float a = line * edge * (0.22 + 0.5 * clamp(vDip / (uCell * 2.0), 0.0, 1.0));
         gl_FragColor = vec4(0.30, 0.85, 0.72, a);
       }`,
   });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
-  m.frustumCulled = false; m.visible = false; m.renderOrder = -20;
+  const m = new THREE.Mesh(geo, mat);
+  m.frustumCulled = false; m.visible = false; m.renderOrder = -5;
   scene.add(m);
   return m;
 })();
+const massE = (b) => b.facts.massE ?? b.facts.mass ?? 0;   // Earth masses
+function updateFabric() {
+  const on = theme === 'dark' && MODES[state.mode].multi;
+  fabric.visible = on;
+  if (!on) return;
+  const list = state.bodies.filter((b) => b.shown && b.size > 0.02 && massE(b) > 0)
+    .sort((a, b) => massE(b) / b.r - massE(a) / a.r).slice(0, WELLS);
+  if (!list.length) { fabric.visible = false; return; }
+  const top = list[0], phiMax = massE(top) / top.r, H = top.r * 1.4;
+  const u = fabric.material.uniforms;
+  let low = Infinity, reach = 0;
+  u.uWells.value.forEach((w, i) => {
+    const b = list[i];
+    if (!b) { w.set(0, 0, 0, 0); return; }
+    w.set(b.pos.x, b.pos.y, b.pos.z, H * Math.pow(massE(b) / b.r / phiMax, 0.3));
+    u.uW.value[i] = b.r * 1.2;
+    low = Math.min(low, b.pos.y - b.r * 1.15);
+    reach = Math.max(reach, Math.abs(b.pos.x) + b.r);
+  });
+  u.uBase.value = low;
+  u.uCell.value = Math.max(0.25, top.r * 0.45);
+  u.uSize.value = Math.max(30, reach * 2.5);
+}
 
 // ---------------------------------------------------------------- theme ----
 
@@ -1286,29 +1332,6 @@ function placeReticle(w, h) {
   reticle.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
 }
 
-/** The lens grid follows the biggest body on screen (disc may be mostly off screen). */
-function updateLens(w, h) {
-  const on = theme === 'dark' && MODES[state.mode].multi;
-  let best = null, bestPx = 0, bx = 0, by = 0;
-  if (on) {
-    for (const b of state.bodies) {
-      if (!b.shown || b.size < 0.02) continue;
-      const px = screenPx(b, w, h);
-      _v.copy(b.pos).project(camera);
-      if (_v.z > 1 || px <= bestPx) continue;
-      best = b; bestPx = px; bx = (_v.x + 1) / 2 * w; by = (1 - _v.y) / 2 * h;
-    }
-  }
-  lensGrid.visible = !!best;
-  if (!best) return;
-  const dpr = renderer.getPixelRatio();
-  const u = lensGrid.material.uniforms;
-  u.uC.value.set(bx * dpr, (h - by) * dpr);
-  u.uR.value = Math.min(bestPx, 4 * h) * dpr;
-  u.uRes.value.set(w * dpr, h * dpr);
-  u.uCell.value = 56 * dpr;
-}
-
 function placeLabels(w, h, t) {
   placeReticle(w, h);
   if (MODES[state.mode].multi) {
@@ -1447,7 +1470,7 @@ function frame() {
     if (Math.abs(ortho.far - far) > far * 0.01) { ortho.far = far; ortho.updateProjectionMatrix(); }
   }
   stars.position.copy(camera.position);
-  updateLens(w, h);
+  updateFabric();
   placePulseArrow(h);
   {
     const earth = state.bodies.find((b) => b.name === 'Earth');
