@@ -10,6 +10,9 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { EARTH, MOON, SUN, PLANETS, AU, C_LIGHT } from '../data.js';
 import { lengthStr, lightTime, clockFace } from '../units.js';
 import { FACTS } from './facts.js';
@@ -49,7 +52,13 @@ controls.dampingFactor = 0.08;
 controls.rotateSpeed = 0.55;
 controls.minDistance = 0.3;
 controls.maxDistance = 6e6;
-controls.addEventListener('start', () => { camTween = null; if (follow) { follow = false; renderDock(); } canvas.classList.add('dragging'); });
+controls.addEventListener('start', () => {
+  camTween = null;
+  if (follow) { follow = false; renderDock(); }
+  // Any hand on the camera ends the straight-on comparison view.
+  if (side) setSide(false, true);
+  canvas.classList.add('dragging');
+});
 controls.addEventListener('end', () => canvas.classList.remove('dragging'));
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0xd9dde6, 1.25);
@@ -65,6 +74,64 @@ rim.position.set(-0.8, 0.5, -1);
 scene.add(rim);
 // Sun direction in view space, for the Earth's night lights.
 const uSun = { value: new THREE.Vector3(1, 0, 0) };
+
+// A far star field for the dark theme; it rides along with the camera so it
+// reads as infinitely far at every zoom.
+const stars = (() => {
+  const n = 2200;
+  const pos = new Float32Array(n * 3);
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2;
+    const s = Math.sqrt(1 - u * u);
+    pos.set([s * Math.cos(a), u, s * Math.sin(a)], i * 3);
+    const w = 0.45 + Math.random() * 0.55;
+    const warm = Math.random();
+    col.set([w, w * (0.92 + warm * 0.08), w * (0.85 + (1 - warm) * 0.15)], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const p = new THREE.Points(g, new THREE.PointsMaterial({
+    size: 1.6, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false,
+  }));
+  p.scale.setScalar(1e6);
+  p.visible = false;
+  p.renderOrder = -10;
+  scene.add(p);
+  return p;
+})();
+
+// ---------------------------------------------------------------- theme ----
+
+const THEMES = {
+  light: { hemi: 1.25, hemiSky: 0xffffff, hemiGround: 0xd9dde6, rim: 0.7, orbit: 0xaab1be, stars: false },
+  dark: { hemi: 0.42, hemiSky: 0x9fb0d0, hemiGround: 0x0c0f16, rim: 0.4, orbit: 0x3a4356, stars: true },
+};
+let theme = 'light';
+function setTheme(t) {
+  if (!THEMES[t]) return;
+  theme = t;
+  const th = THEMES[t];
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name=color-scheme]').content = t;
+  try { localStorage.setItem('demo-theme', t); } catch { /* private mode */ }
+  hemi.color.setHex(th.hemiSky);
+  hemi.groundColor.setHex(th.hemiGround);
+  rim.intensity = th.rim;
+  stars.visible = th.stars;
+  for (const o of state.orbits) o.material.color.setHex(th.orbit);
+  if (state.mode) applyLights();
+  const btn = el('theme');
+  if (btn) btn.textContent = t === 'dark' ? '☀' : '☾';
+}
+function applyLights() {
+  const multi = MODES[state.mode].multi;
+  const th = THEMES[theme];
+  sunLight.intensity = multi ? 2.3 : 0.35;
+  sunPoint.intensity = multi ? 0 : 3.2;
+  hemi.intensity = multi ? th.hemi : th.hemi * 0.92;
+}
 
 // ------------------------------------------------------------ textures -----
 
@@ -212,7 +279,9 @@ function makeBody(name, rMetres, color) {
     }));
     ring.rotation.x = -Math.PI / 2;
     group.add(ring);
-    group.rotation.z = THREE.MathUtils.degToRad(-f.ring.tilt);
+    // Tipped towards the viewer, as Saturn shows itself from Earth at the
+    // open end of its 29-year cycle; edge-on the rings would be a pencil line.
+    group.rotation.x = THREE.MathUtils.degToRad(f.ring.tilt);
   } else if (name === 'Earth') {
     group.rotation.z = THREE.MathUtils.degToRad(-23.4);
   } else if (name === 'Uranus') {
@@ -231,8 +300,9 @@ function makeBody(name, rMetres, color) {
 
   return {
     name, r, color, facts: f, group, spin, label, marker,
-    // Horizontal half-extent: Saturn's rings need room in a row.
-    ext: f.ring ? r * f.ring.outer : r,
+    // Horizontal half-extent used to space the row. Saturn gets a third of
+    // its ring span: the rings may overlap a neighbour, the globes may not.
+    ext: f.ring ? r * (1 + (f.ring.outer - 1) / 3) : r,
     pos: new THREE.Vector3(), tween: null, size: 1, sizeTween: null, shown: true,
   };
 }
@@ -291,7 +361,10 @@ const MODES = {
         line.userData.a = U(p.a);
         return line;
       });
-      return { bodies, orbits, origin: bodies[0], targets: PLANETS.map((p) => ({ name: p.name, d: p.a })) };
+      for (const o of orbits) o.material.color.setHex(THEMES[theme].orbit);
+      // The pulse leaves the photosphere, not the centre: distances to cover
+      // are measured from the Sun's surface.
+      return { bodies, orbits, origin: bodies[0], targets: PLANETS.map((p) => ({ name: p.name, d: p.a - SUN.r })) };
     },
     layout(v) {
       const [sun, ...planets] = state.bodies;
@@ -320,9 +393,13 @@ const compress = (d) => {
   const RN = U(PLANETS[7].a);
   return RN * Math.pow(Math.max(d, 0) / RN, COMP_P);
 };
+// Inflated radii, as fractions of Neptune's orbit. Not to scale and cannot
+// be (the real Sun would be a pixel), but the order and the gaps between
+// the tiers hold: the Sun is ~4× Jupiter, Jupiter ~2.3× Earth, Earth ~1.6×
+// Mercury.
 const COMP_SIZE = {
-  Sun: 0.05, Jupiter: 0.021, Saturn: 0.018, Uranus: 0.0115, Neptune: 0.0112,
-  Earth: 0.0085, Venus: 0.0082, Mars: 0.0064, Mercury: 0.0052,
+  Sun: 0.062, Jupiter: 0.0165, Saturn: 0.014, Uranus: 0.0096, Neptune: 0.0094,
+  Earth: 0.0072, Venus: 0.007, Mars: 0.0056, Mercury: 0.0046,
 };
 
 // --------------------------------------------------------------- state -----
@@ -356,9 +433,7 @@ function setMode(id, variant) {
 
   // Lighting: a Sun off to the right in the size row, a Sun at the centre of
   // the solar scene.
-  sunLight.intensity = def.multi ? 2.3 : 0.35;
-  sunPoint.intensity = def.multi ? 0 : 3.2;
-  hemi.intensity = def.multi ? 1.25 : 1.15;
+  applyLights();
   if (side) setSide(false, true);
 
   resetPulse();
@@ -370,6 +445,7 @@ function setMode(id, variant) {
     state.picked = new Set(PRESETS.home);
     for (const b of state.bodies) { b.shown = false; b.size = 0; }
     layoutSizes(true);
+    setTip(null);
   } else {
     setVariant(variant ?? def.variants[0][0], true);
     select(state.bodies[0], true);
@@ -398,8 +474,14 @@ function setVariant(v, instant = false) {
   state.variant = v;
   const frame = MODES[state.mode].layout(v);
   flyFrame(frame, instant ? 0 : 1600);
+  setTip(v === 'compressed'
+    ? 'Compressed: orbits squeezed, bodies enlarged so they show. Distances and the clock stay honest; True scale is the real picture.'
+    : null);
   renderDock();
 }
+
+const TIP_DEFAULT = 'Drag to orbit, scroll to zoom. Pick a body on the left to fly there.';
+function setTip(text) { el('tipText').textContent = text ?? TIP_DEFAULT; }
 
 // ------------------------------------------------------------ size row -----
 
@@ -410,20 +492,25 @@ function setVariant(v, instant = false) {
  */
 function layoutSizes(instant = false) {
   const picked = state.bodies.filter((b) => state.picked.has(b.name));
-  const row = picked.filter((b) => b.name !== 'Sun').sort((a, b) => a.r - b.r);
+  // Smallest to largest by footprint, so Saturn's rings end the row instead
+  // of lying across Jupiter and Uranus.
+  const row = picked.filter((b) => b.name !== 'Sun').sort((a, b) => a.ext - b.ext);
   const sun = picked.find((b) => b.name === 'Sun');
 
   let x = 0;
   let prev = null;
   const place = new Map();
+  const full = (b) => (b.facts.ring ? b.r * b.facts.ring.outer : b.r);
+  let reach = 0;      // rightmost pixel of anything, rings included
   for (const b of row) {
     if (prev) x += 0.12 * Math.max(prev.ext, b.ext) + 0.12;
     x += b.ext;
     place.set(b, x);
+    reach = Math.max(reach, x + full(b));
     x += b.ext;
     prev = b;
   }
-  const rowW = x;
+  const rowW = Math.max(x, reach);
   let left = row.length ? -0.4 : 0;
   let right = row.length ? rowW + 0.4 : 0;
   if (sun) {
@@ -468,12 +555,16 @@ let side = false;        // orthographic, straight along the row
 let switchAt = null;     // swap cameras once the fly-in has landed
 
 /**
- * Side view: fly the perspective camera straight in front of the row, then
+ * Compare view: fly the perspective camera straight in front of the row, then
  * hand over to the orthographic one at the same framing, so nothing jumps
- * except the perspective itself.
+ * except the perspective itself. It is a one-shot: the first drag or scroll
+ * hands the scene back to the ordinary camera where it stands.
  */
 function setSide(on, instant = false) {
-  if (on === side) return;
+  if (on === side) {
+    if (on && state.frame) flyFrame(state.frame, instant ? 0 : 1200);
+    return;
+  }
   side = on;
   if (on) {
     if (state.frame) flyFrame(state.frame, instant ? 0 : 1200);
@@ -481,7 +572,7 @@ function setSide(on, instant = false) {
   } else {
     switchAt = null;
     toPersp();
-    if (state.frame) flyFrame(state.frame, instant ? 0 : 1200);
+    if (!instant && state.frame) flyFrame(state.frame, 1200);
   }
   renderDock();
 }
@@ -522,6 +613,7 @@ function togglePick(b) {
   else state.picked.add(b.name);
   layoutSizes();
   renderList();
+  renderDock();
   renderOverview();
 }
 
@@ -529,6 +621,7 @@ function setPicked(names) {
   state.picked = new Set(names);
   layoutSizes();
   renderList();
+  renderDock();
   renderOverview();
 }
 
@@ -605,24 +698,76 @@ function flyToBody(b) {
 
 // --------------------------------------------------------------- pulse -----
 
+const PULSE_COLOR = 0x17a589;
+
 function ensurePulse() {
   if (pulse.mesh) return;
-  pulse.mesh = new THREE.Mesh(SPHERE, new THREE.MeshBasicMaterial({
-    color: 0x17a589, transparent: true, opacity: 0.09, depthWrite: false, side: THREE.FrontSide,
+  // The shell: a fresnel wash that thickens towards the limb, so the front
+  // reads as a surface rather than a flat tint.
+  pulse.mesh = new THREE.Mesh(SPHERE, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.FrontSide,
+    uniforms: { color: { value: new THREE.Color(PULSE_COLOR) }, opacity: { value: 1 } },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vP;
+      void main() {
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vP = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 color; uniform float opacity; varying vec3 vN; varying vec3 vP;
+      void main() {
+        float d = abs(dot(normalize(vN), normalize(-vP)));
+        float a = 0.07 + 0.55 * pow(1.0 - d, 3.0);
+        gl_FragColor = vec4(color, a * opacity);
+      }`,
   }));
   pulse.mesh.renderOrder = 5;
-  const pts = [];
+
+  // The front itself: a fat line, constant width in pixels at every zoom.
+  const ring = [];
   for (let i = 0; i <= 256; i++) {
     const a = (i / 256) * Math.PI * 2;
-    pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+    ring.push(Math.cos(a), 0, Math.sin(a));
   }
-  pulse.ring = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({ color: 0x17a589, transparent: true, opacity: 0.9 }),
-  );
+  const ringGeo = new LineGeometry();
+  ringGeo.setPositions(ring);
+  pulse.ring = new Line2(ringGeo, new LineMaterial({
+    color: PULSE_COLOR, linewidth: 3, transparent: true, opacity: 0.95, depthWrite: false,
+  }));
   pulse.ring.renderOrder = 6;
-  scene.add(pulse.mesh, pulse.ring);
-  pulse.mesh.visible = pulse.ring.visible = false;
+
+  // The radius vector: Sun → front, aimed at the next planet in line, with
+  // the elapsed time and distance written at its tip.
+  const vecGeo = new LineGeometry();
+  vecGeo.setPositions([0, 0, 0, 1, 0, 0]);
+  pulse.vec = new Line2(vecGeo, new LineMaterial({
+    color: PULSE_COLOR, linewidth: 1.5, transparent: true, opacity: 0.7, depthWrite: false,
+  }));
+  pulse.vec.renderOrder = 6;
+  pulse.ang = 0;
+
+  pulse.tag = document.createElement('div');
+  pulse.tag.className = 'ptag';
+  el('labels').append(pulse.tag);
+
+  scene.add(pulse.mesh, pulse.ring, pulse.vec);
+  setPulseVisible(false);
+}
+
+function setPulseVisible(on) {
+  if (!pulse.mesh) return;
+  pulse.mesh.visible = pulse.ring.visible = pulse.vec.visible = on;
+  pulse.tag.style.opacity = on ? 1 : 0;
+}
+
+/** Direction from the Sun to the planet the pulse will reach next. */
+function nextAngle() {
+  const t = state.targets[Math.min(pulse.next, state.targets.length - 1)];
+  const b = state.bodies.find((x) => x.name === t.name);
+  const p = b.tween ? b.tween.to : b.pos;
+  return Math.atan2(p.z, p.x);
 }
 
 function startPulse() {
@@ -632,7 +777,8 @@ function startPulse() {
   pulse.sim = 0;
   pulse.arrivals = [];
   pulse.next = 0;
-  pulse.mesh.visible = pulse.ring.visible = true;
+  pulse.ang = nextAngle();
+  setPulseVisible(true);
   follow = true;
   renderDock();
   renderOverview();
@@ -643,7 +789,7 @@ function resetPulse() {
   pulse.sim = 0;
   pulse.arrivals = [];
   pulse.next = 0;
-  if (pulse.mesh) pulse.mesh.visible = pulse.ring.visible = false;
+  setPulseVisible(false);
 }
 
 function cycleSpeed() {
@@ -670,23 +816,61 @@ function tickPulse(dt) {
   if (metres > last * 1.35) { pulse.on = false; renderOverview(); }
 }
 
-/** Pulse radius in scene units — through the same mapping as the planets. */
+/**
+ * Pulse radius in scene units. The front starts on the photosphere and goes
+ * through the same mapping as the planets, so it meets each one at the real
+ * moment. In the compressed layout the drawn Sun is fatter than the mapping
+ * would put it, so the front sits on its surface for the first few seconds.
+ */
 function pulseRadius() {
-  const r = U(C_LIGHT * pulse.sim);
-  return state.variant === 'compressed' ? compress(r) : r;
+  const r = U(SUN.r + C_LIGHT * pulse.sim);
+  if (state.variant !== 'compressed') return r;
+  const sun = state.origin;
+  return Math.max(compress(r), sun.r * (sun.sizeTween ? sun.sizeTween.to : sun.size));
 }
 
-function placePulse() {
+function placePulse(dt) {
   if (!pulse.mesh || !pulse.mesh.visible) return;
   const r = Math.max(pulseRadius(), 1e-4);
   const origin = state.origin.pos;
   pulse.mesh.position.copy(origin);
   pulse.ring.position.copy(origin);
+  pulse.vec.position.copy(origin);
   pulse.mesh.scale.setScalar(r);
   pulse.ring.scale.setScalar(r);
-  const fade = pulse.on ? 1 : 0.35;
-  pulse.mesh.material.opacity = 0.09 * fade;
-  pulse.ring.material.opacity = 0.9 * fade;
+  // Swing the radius vector towards the next planet by the short way round.
+  const want = nextAngle();
+  let diff = want - pulse.ang;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+  pulse.ang += diff * (1 - Math.exp(-dt * 4));
+  pulse.vec.rotation.y = -pulse.ang;
+  pulse.vec.scale.setScalar(r);
+  const fade = pulse.on ? 1 : 0.4;
+  pulse.mesh.material.uniforms.opacity.value = fade;
+  pulse.ring.material.opacity = 0.95 * fade;
+  pulse.vec.material.opacity = 0.7 * fade;
+}
+
+const _tip = new THREE.Vector3();
+/**
+ * The time/distance tag on the radius vector, in screen space. It sits
+ * halfway between the Sun's surface and the front, like a dimension label,
+ * so it never lands on the planet the vector points at.
+ */
+function placePulseTag(w, h) {
+  if (!pulse.mesh || !pulse.mesh.visible) return;
+  const r = pulse.vec.scale.x;
+  const sun = state.origin;
+  const s = (sun.r * sun.size + r) / 2;
+  _tip.set(Math.cos(pulse.ang) * s, 0, Math.sin(pulse.ang) * s).add(sun.pos).project(camera);
+  const x = (_tip.x + 1) / 2 * w;
+  const y = (1 - _tip.y) / 2 * h;
+  const on = _tip.z < 1 && x > -80 && x < w + 80 && y > -40 && y < h + 40;
+  pulse.tag.style.opacity = on ? 1 : 0;
+  pulse.tagBox = on ? { left: x - 70, right: x + 70, top: y - 16, bottom: y + 16 } : null;
+  if (!on) return;
+  pulse.tag.innerHTML = `<b>${clockFace(pulse.sim)}</b><span>${lengthStr(C_LIGHT * pulse.sim)}</span>`;
+  pulse.tag.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
 }
 
 // ----------------------------------------------------------------- UI ------
@@ -700,8 +884,8 @@ function select(b, instant = false) {
     el('titleText').textContent = b.name;
     const p = PLANETS.find((q) => q.name === b.name);
     el('epithet').textContent = p
-      ? `${(p.a / AU).toFixed(2)} AU from the Sun · light takes ${lightTime(p.a)}`
-      : `${lengthStr(SUN.d)} across · light reaches Neptune in ${lightTime(PLANETS[7].a)}`;
+      ? `${(p.a / AU).toFixed(2)} AU from the Sun · light takes ${lightTime(p.a - SUN.r)}`
+      : `${lengthStr(SUN.d)} across · light reaches Neptune in ${lightTime(PLANETS[7].a - SUN.r)}`;
     el('blurb').textContent = '';
     el('chips').innerHTML = '';
   };
@@ -755,7 +939,7 @@ function renderDock() {
     sep();
     add('Clear', false, () => setPicked([]));
     sep();
-    add('<i>▭</i>Side view', side, () => setSide(!side), 'tog').title = 'Straight along the row, no perspective';
+    add('<i>▭</i>Compare', side, () => setSide(true), 'tog').title = 'Straight on, no perspective: drag or scroll to leave';
     return;
   }
   for (const [v, label] of def.variants) add(label, v === state.variant, () => setVariant(v));
@@ -891,7 +1075,7 @@ function placeLabels(w, h, t) {
   // Greedy: the selected body first, then the biggest on screen; anything whose
   // box would land on an already placed label stays hidden.
   want.sort((p, q) => (q.sel - p.sel) || (q.px - p.px));
-  const placed = [];
+  const placed = pulse.tagBox && pulse.mesh?.visible ? [pulse.tagBox] : [];
   for (const p of want) {
     const box = { left: p.x - 44, right: p.x + 44, top: p.y - 22, bottom: p.y + 4 };
     const clash = placed.some((o) => !(box.right < o.left || box.left > o.right || box.bottom < o.top || box.top > o.bottom))
@@ -914,6 +1098,10 @@ function frame() {
     persp.aspect = w / h;
     persp.updateProjectionMatrix();
     fitOrtho();
+    if (pulse.ring) {
+      pulse.ring.material.resolution.set(canvas.width, canvas.height);
+      pulse.vec.material.resolution.set(canvas.width, canvas.height);
+    }
   }
 
   for (const b of state.bodies) {
@@ -942,7 +1130,7 @@ function frame() {
   }
 
   tickPulse(dt);
-  placePulse();
+  placePulse(dt);
   tickClock();
 
   if (camTween) {
@@ -974,6 +1162,8 @@ function frame() {
   // The labels project through the camera's world matrix; refresh it now, or
   // they are placed with last frame's camera and trail behind a drag.
   camera.updateMatrixWorld(true);
+  stars.position.copy(camera.position);
+  placePulseTag(w, h);
   {
     const earth = state.bodies.find((b) => b.name === 'Earth');
     const dir = MODES[state.mode].multi || !earth
@@ -988,8 +1178,14 @@ function frame() {
 
 // ---------------------------------------------------------------- wire -----
 
-for (const btn of el('modes').querySelectorAll('button')) btn.onclick = () => setMode(btn.dataset.mode);
+for (const btn of el('modes').querySelectorAll('button[data-mode]')) btn.onclick = () => setMode(btn.dataset.mode);
 el('tipClose').onclick = () => { el('tip').style.display = 'none'; };
+el('theme').onclick = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+{
+  let saved = null;
+  try { saved = localStorage.getItem('demo-theme'); } catch { /* private mode */ }
+  setTheme(saved === 'dark' ? 'dark' : 'light');
+}
 
 addEventListener('keydown', (e) => {
   if (MODES[state.mode].multi) {
@@ -1022,6 +1218,6 @@ requestAnimationFrame(frame);
 
 // Handy for the screenshot tool and the console.
 window.__demo = {
-  setMode, setVariant, select, startPulse, setPicked, togglePick, setSide, pulseRadius, compress, U,
-  state, pulse, controls, flyToBody, get camera() { return camera; },
+  setMode, setVariant, select, startPulse, setPicked, togglePick, setSide, setTheme, pulseRadius, compress, U,
+  state, pulse, controls, flyToBody, get camera() { return camera; }, get side() { return side; },
 };

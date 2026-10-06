@@ -30,6 +30,11 @@ const SHOTS = [
   ['ss-true', 'solar-system', 'true', null, [], 2500],
   ['ss-true-earth', 'solar-system', 'true', 'Earth', [], 2500],
   ['ss-true-light', 'solar-system', 'true', null, ['light', 6000], 500],
+  ['ss-compressed-start', 'solar-system', 'compressed', null, ['light', 400], 100],
+  ['dark-sizes-planets', 'earth-moon', null, ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'], ['dark'], 2800],
+  ['dark-sizes-home', 'earth-moon', null, null, ['dark'], 2500],
+  ['dark-ss-compressed-light', 'solar-system', 'compressed', null, ['dark', 'light', 9000], 500],
+  ['dark-ss-true', 'solar-system', 'true', null, ['dark'], 2500],
 ];
 
 const { server, url } = await listen();
@@ -48,7 +53,7 @@ await page.waitForFunction(() => window.__demo && document.getElementById('loadi
 await page.waitForTimeout(9000);
 
 for (const [name, mode, variant, body, steps, settle] of SHOTS) {
-  if (only && name !== only) continue;
+  if (only && !only.split(',').includes(name)) continue;
   await page.evaluate(({ mode, variant, body }) => {
     const d = window.__demo;
     d.setMode(mode, variant);
@@ -60,26 +65,68 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
   for (const s of steps) {
     if (s === 'side') await page.evaluate(() => window.__demo.setSide(true));
     else if (s === 'light') await page.evaluate(() => window.__demo.startPulse());
+    else if (s === 'dark') await page.evaluate(() => window.__demo.setTheme('dark'));
     else if (typeof s === 'number') await page.waitForTimeout(s);
   }
   await page.waitForTimeout(settle);
   await page.screenshot({ path: path.join(OUT, `${name}.png`) });
+  await page.evaluate(() => window.__demo.setTheme('light'));
   console.log('shot', name);
 }
 
-// The compressed layout must put the pulse front on each planet at the real
-// arrival time: same mapping both ways.
-const check = await page.evaluate(() => {
+// Both layouts must put the pulse front on each planet at the real arrival
+// time, and the front must leave from the photosphere, not the centre.
+for (const variant of ['compressed', 'true']) {
+  const check = await page.evaluate((variant) => {
+    const d = window.__demo;
+    d.setMode('solar-system', variant);
+    const sun = d.state.origin;
+    const out = [];
+    d.pulse.sim = 0;
+    out.push(`t=0: pulse ${d.pulseRadius().toFixed(2)} vs Sun surface ${(sun.r * (sun.sizeTween ? sun.sizeTween.to : sun.size)).toFixed(2)}`);
+    for (const t of d.state.targets) {
+      d.pulse.sim = t.d / 299792458;
+      const body = d.state.bodies.find((b) => b.name === t.name);
+      const planet = body.tween ? body.tween.to.length() : body.pos.length();
+      out.push(`${t.name}: pulse ${d.pulseRadius().toFixed(1)} vs planet ${planet.toFixed(1)} at ${(t.d / 299792458).toFixed(1)} s`);
+    }
+    return out;
+  }, variant);
+  console.log(`${variant} pulse check:\n  ` + check.join('\n  '));
+}
+
+// Projected diameters in the orthographic compare view must be in the ratio
+// of the real radii.
+await page.evaluate(() => {
   const d = window.__demo;
-  d.setMode('solar-system', 'compressed');
-  return d.state.targets.map((t) => {
-    d.pulse.sim = t.d / 299792458;
-    const body = d.state.bodies.find((b) => b.name === t.name);
-    const planet = body.tween ? body.tween.to.length() : body.pos.length();
-    return `${t.name}: pulse ${d.pulseRadius().toFixed(1)} vs planet ${planet.toFixed(1)}`;
-  });
+  d.setMode('earth-moon');
+  d.setPicked(d.state.bodies.map((b) => b.name));
 });
-console.log('compressed pulse check:\n  ' + check.join('\n  '));
+await page.waitForTimeout(1800);
+await page.evaluate(() => window.__demo.setSide(true, true));
+await page.waitForTimeout(2000);
+const sizes = await page.evaluate(() => {
+  const d = window.__demo;
+  const cam = d.camera;
+  const pxPerUnit = innerHeight / (cam.top - cam.bottom);
+  const earth = d.state.bodies.find((b) => b.name === 'Earth');
+  return d.state.bodies.map((b) => `${b.name}: ${(2 * b.r * b.size * pxPerUnit).toFixed(1)} px = ${(b.r * b.size / (earth.r * earth.size)).toFixed(3)} × Earth (data ${(b.r / earth.r).toFixed(3)})`);
+});
+console.log('ortho =', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true));
+console.log('compare view sizes:\n  ' + sizes.join('\n  '));
+
+// A drag must hand the scene back to the perspective camera, a wheel too.
+await page.mouse.move(W / 2, H / 2);
+await page.mouse.down();
+await page.mouse.move(W / 2 + 60, H / 2 + 10, { steps: 6 });
+await page.mouse.up();
+await page.waitForTimeout(300);
+console.log('after drag: persp =', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
+await page.evaluate(() => window.__demo.setSide(true, true));
+await page.waitForTimeout(300);
+await page.mouse.wheel(0, -200);
+await page.waitForTimeout(300);
+console.log('after wheel: persp =', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
 
 await browser.close();
 server.close();

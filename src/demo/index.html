@@ -30,7 +30,50 @@
   --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
   --radius: 18px;
   --shadow: 0 1px 2px rgba(20, 24, 36, 0.05), 0 12px 32px -12px rgba(20, 24, 36, 0.18);
+  --card-edge: rgba(255, 255, 255, 0.7);
+  --hover: rgba(29, 34, 48, .05);
+  --track: rgba(29, 34, 48, .08);
+  --label: #5d55d6;
+  --label2: #4b4f9a;
+  --body-text: #3b4150;
+  --tip-bg: rgba(238, 236, 252, .9);
+  --tip-ink: #3b3f6b;
+  --halo: #fff;
 }
+html[data-theme="dark"] {
+  --bg: #0a0d14;
+  --bg2: #151a26;
+  --card: rgba(21, 25, 36, 0.78);
+  --card-solid: #1b2030;
+  --ink: #e9ecf3;
+  --dim: #98a1b4;
+  --faint: #5c6476;
+  --line: rgba(255, 255, 255, 0.08);
+  --teal: #22c1a0;
+  --teal-ink: #4fd9bb;
+  --teal-soft: rgba(34, 193, 160, 0.16);
+  --orange: #f2a052;
+  --orange-soft: rgba(242, 160, 82, 0.2);
+  --violet: #a9a4ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px -14px rgba(0, 0, 0, 0.7);
+  --card-edge: rgba(255, 255, 255, 0.08);
+  --hover: rgba(255, 255, 255, .06);
+  --track: rgba(255, 255, 255, .1);
+  --label: #b9b5ff;
+  --label2: #9a97d8;
+  --body-text: #c3c9d6;
+  --tip-bg: rgba(44, 42, 78, .85);
+  --tip-ink: #d6d3ff;
+  --halo: #1b2030;
+}
+html[data-theme="dark"] body {
+  background: radial-gradient(120% 90% at 50% 45%, var(--bg2) 0%, var(--bg) 60%, #05070b 100%);
+}
+html[data-theme="dark"] .body .thumb { box-shadow: inset -9px -6px 14px rgba(0, 0, 0, .6), inset 4px 4px 10px rgba(255, 255, 255, .14), 0 2px 6px rgba(0, 0, 0, .5); }
+html[data-theme="dark"] .marker::after { border-color: rgba(255, 255, 255, .3); }
+html[data-theme="dark"] .marker { background: #fff; box-shadow: 0 0 0 3px var(--halo), 0 0 0 4px rgba(255, 255, 255, .25); }
+html[data-theme="dark"] #dock button.on { box-shadow: 0 8px 20px -8px rgba(34, 193, 160, .6); }
+html[data-theme="dark"] #theme { color: #ffd98a; }
 
 * { box-sizing: border-box; }
 
@@ -85,14 +128,37 @@ body {
   font-weight: 600;
   font-size: 15px;
   letter-spacing: .01em;
-  color: var(--violet);
+  color: var(--label);
 }
 .label small {
   display: block;
   font-size: 11px;
   line-height: 1.35;
-  color: #4b4f9a;
+  color: var(--label2);
 }
+/* The tag at the tip of the light pulse's radius vector. */
+.ptag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+  white-space: nowrap;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  box-shadow: var(--shadow);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--teal-ink);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.ptag b { font-weight: 500; font-size: 13px; }
+.ptag span { color: var(--dim); }
 .label.cool b { color: var(--teal-ink); }
 .label.cool small { color: #2e7d6b; }
 .marker {
@@ -104,7 +170,7 @@ body {
   border-radius: 50%;
   will-change: transform;
   background: var(--ink);
-  box-shadow: 0 0 0 3px #fff, 0 0 0 4px rgba(29, 34, 48, .18);
+  box-shadow: 0 0 0 3px var(--halo), 0 0 0 4px rgba(29, 34, 48, .18);
 }
 .marker::after {
   content: '';
@@ -135,7 +201,7 @@ body {
   -webkit-backdrop-filter: blur(14px);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--card-edge);
 }
 .eyebrow {
   font-family: var(--display);
@@ -194,7 +260,7 @@ body {
   color: inherit;
   transition: border-color .2s, transform .2s, box-shadow .2s;
 }
-.body:hover { border-color: rgba(29, 34, 48, .18); transform: translateX(2px); }
+.body:hover { border-color: var(--faint); transform: translateX(2px); }
 .body.on {
   border-color: var(--orange);
   box-shadow: 0 0 0 3px var(--orange-soft);
@@ -296,7 +362,7 @@ body {
   max-width: 34ch;
   font-size: 14.5px;
   line-height: 1.5;
-  color: #3b4150;
+  color: var(--body-text);
 }
 #chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .chip {
@@ -305,7 +371,7 @@ body {
   gap: 7px;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .8);
+  background: var(--card);
   border: 1px solid var(--line);
   font-family: var(--display);
   font-size: 11px;
@@ -346,7 +412,7 @@ body {
   gap: 8px;
   transition: background .2s, color .2s;
 }
-#dock button:hover { background: rgba(29, 34, 48, .05); }
+#dock button:hover { background: var(--hover); }
 #dock button.on { background: var(--teal); color: #fff; box-shadow: 0 8px 20px -8px rgba(23, 165, 137, .7); }
 #dock button.go { background: var(--orange); color: #fff; }
 #dock button.tog { color: var(--dim); }
@@ -370,7 +436,7 @@ body {
   width: 18px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(29, 34, 48, .14);
+  background: var(--track);
   cursor: pointer;
 }
 #dots i.on { background: var(--teal); }
@@ -401,6 +467,17 @@ body {
   cursor: pointer;
 }
 #modes button.on { background: var(--teal-soft); color: var(--teal-ink); }
+#modes #theme {
+  flex: none;
+  width: 38px;
+  padding: 0;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--dim);
+}
+#modes #theme:hover { background: var(--hover); }
 
 #side {
   grid-column: 3;
@@ -440,7 +517,7 @@ body {
   width: 11px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(29, 34, 48, .08);
+  background: var(--track);
   transform-origin: left;
 }
 .row2 .bar i.on { background: var(--teal); }
@@ -475,7 +552,7 @@ body.sizes #head, body.sizes #dots { display: none; }
 #clockTime { font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: .02em; margin-top: 8px; }
 #clockMeta { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 2px; }
 #clockMeta b { color: var(--teal-ink); font-weight: 500; }
-#clockBarWrap { height: 4px; border-radius: 2px; background: rgba(29, 34, 48, .08); overflow: hidden; margin: 10px 0 6px; }
+#clockBarWrap { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; margin: 10px 0 6px; }
 #clockBar { display: block; height: 100%; width: 0%; background: var(--teal); border-radius: 2px; }
 #clockArrivals { margin: 0; padding: 0; list-style: none; font-size: 12px; display: flex; flex-direction: column; }
 #clockArrivals li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
@@ -492,9 +569,9 @@ body.sizes #head, body.sizes #dots { display: none; }
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: rgba(238, 236, 252, .9);
+  background: var(--tip-bg);
   font-size: 12px;
-  color: #3b3f6b;
+  color: var(--tip-ink);
   line-height: 1.4;
 }
 #tip .ic {
@@ -576,6 +653,7 @@ body.sizes #head, body.sizes #dots { display: none; }
   <div id="modes" class="card">
     <button data-mode="earth-moon" class="on">Sizes</button>
     <button data-mode="solar-system">Distances</button>
+    <button id="theme" title="Light / dark" aria-label="Toggle theme">☾</button>
   </div>
 
   <div id="side">
