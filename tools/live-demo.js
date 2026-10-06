@@ -37,10 +37,14 @@ await page.waitForTimeout(4000);
 
 await page.click('#dock button:nth-of-type(2)');          // The planets
 await page.waitForTimeout(1800);
-await page.click('#dock button.tog');                      // Compare
+await page.click('#dock button.tog:nth-of-type(1)');       // Front
 await page.waitForTimeout(1800);
-console.log('compare ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true));
+console.log('front ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true));
 await page.screenshot({ path: path.join(OUT, 'live-compare.png') });
+await page.click('#dock button.tog:nth-of-type(2)');       // Along
+await page.waitForTimeout(1800);
+console.log('along ortho:', await page.evaluate(() => window.__demo.camera.isOrthographicCamera === true && window.__demo.side === 'end'));
+await page.screenshot({ path: path.join(OUT, 'live-along.png') });
 await page.mouse.move(700, 430); await page.mouse.down(); await page.mouse.move(760, 440, { steps: 5 }); await page.mouse.up();
 await page.waitForTimeout(400);
 console.log('after drag persp:', await page.evaluate(() => window.__demo.camera.isPerspectiveCamera === true && !window.__demo.side));
@@ -49,8 +53,7 @@ await page.click('#modes button[data-mode="solar-system"]');
 await page.waitForTimeout(2000);
 await page.click('#dock button.go');                       // Send light
 await page.waitForTimeout(7000);
-const tag = await page.evaluate(() => document.querySelector('.ptag')?.textContent);
-console.log('pulse tag:', tag, '| opacity', await page.evaluate(() => document.querySelector('.ptag').style.opacity));
+console.log('pulse arrow visible:', await page.evaluate(() => window.__demo.pulse.arrow.visible && window.__demo.pulse.arrow.scale.x > 0));
 await page.screenshot({ path: path.join(OUT, 'live-light.png') });
 await page.click('#theme');
 await page.waitForTimeout(800);

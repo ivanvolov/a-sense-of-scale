@@ -136,29 +136,6 @@ body {
   line-height: 1.35;
   color: var(--label2);
 }
-/* The tag at the tip of the light pulse's radius vector. */
-.ptag {
-  position: absolute;
-  left: 0;
-  top: 0;
-  will-change: transform;
-  white-space: nowrap;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: var(--card);
-  border: 1px solid var(--card-edge);
-  box-shadow: var(--shadow);
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--teal-ink);
-  opacity: 0;
-  transition: opacity .25s ease;
-}
-.ptag b { font-weight: 500; font-size: 13px; }
-.ptag span { color: var(--dim); }
 .label.cool b { color: var(--teal-ink); }
 .label.cool small { color: #2e7d6b; }
 .marker {
@@ -399,12 +376,13 @@ body {
   border: 0;
   background: transparent;
   border-radius: 999px;
-  padding: 12px 20px;
+  padding: 12px 17px;
   font-family: var(--display);
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: .14em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--ink);
   cursor: pointer;
   display: inline-flex;

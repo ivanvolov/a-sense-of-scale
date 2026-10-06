@@ -56,7 +56,7 @@ controls.addEventListener('start', () => {
   camTween = null;
   if (follow) { follow = false; renderDock(); }
   // Any hand on the camera ends the straight-on comparison view.
-  if (side) setSide(false, true);
+  if (side) setSide(null, true);
   canvas.classList.add('dragging');
 });
 controls.addEventListener('end', () => canvas.classList.remove('dragging'));
@@ -279,9 +279,10 @@ function makeBody(name, rMetres, color) {
     }));
     ring.rotation.x = -Math.PI / 2;
     group.add(ring);
-    // Tipped towards the viewer, as Saturn shows itself from Earth at the
-    // open end of its 29-year cycle; edge-on the rings would be a pencil line.
-    group.rotation.x = THREE.MathUtils.degToRad(f.ring.tilt);
+    // Axis tilted in the picture plane, with a slight nod towards the viewer:
+    // from the front the rings are a slim slanted ellipse that can pass a
+    // neighbour without slicing it.
+    group.rotation.set(THREE.MathUtils.degToRad(14), 0, THREE.MathUtils.degToRad(-f.ring.tilt));
   } else if (name === 'Earth') {
     group.rotation.z = THREE.MathUtils.degToRad(-23.4);
   } else if (name === 'Uranus') {
@@ -434,7 +435,7 @@ function setMode(id, variant) {
   // Lighting: a Sun off to the right in the size row, a Sun at the centre of
   // the solar scene.
   applyLights();
-  if (side) setSide(false, true);
+  if (side) setSide(null, true);
 
   resetPulse();
   pulse.speed = def.speeds[0];
@@ -502,10 +503,12 @@ function layoutSizes(instant = false) {
   const place = new Map();
   const full = (b) => (b.facts.ring ? b.r * b.facts.ring.outer : b.r);
   let reach = 0;      // rightmost pixel of anything, rings included
+  let first = null;   // x of the smallest body: where the along-the-row view looks from
   for (const b of row) {
     if (prev) x += 0.12 * Math.max(prev.ext, b.ext) + 0.12;
     x += b.ext;
     place.set(b, x);
+    if (first == null) first = x;
     reach = Math.max(reach, x + full(b));
     x += b.ext;
     prev = b;
@@ -546,33 +549,48 @@ function layoutSizes(instant = false) {
 
   const width = Math.max(right - left, 4) * 1.08;
   const center = new THREE.Vector3((left + right) / 2, (sun && !row.length ? 0 : 0.05), 0);
-  flyFrame({ center, width, el: side ? 0 : 6 }, instant ? 0 : 1500);
+  state.rowFrame = { center, width, el: 6, az: 0 };
+  // Along the row: every centre sits on the axis, so the bodies stack into
+  // nested discs, smallest nearest. Framed on the biggest planet; the Sun,
+  // when picked, is the wall behind them all.
+  const big = row.length ? Math.max(1, ...row.map(full)) : (sun ? sun.r : 2);
+  state.endFrame = { center: new THREE.Vector3(first ?? 0, 0, 0), width: big * 2.4, el: 0, az: -90 };
+  flyFrame(viewFrame(), instant ? 0 : 1500);
+}
+
+/** The framing for the current view: free camera, straight-on, or along the row. */
+function viewFrame() {
+  if (side === 'end') return state.endFrame;
+  if (side === 'front') return { ...state.rowFrame, el: 0 };
+  return state.rowFrame;
 }
 
 // ------------------------------------------------------------ side view ----
 
-let side = false;        // orthographic, straight along the row
+let side = null;         // null | 'front' | 'end' — the orthographic views
 let switchAt = null;     // swap cameras once the fly-in has landed
 
 /**
- * Compare view: fly the perspective camera straight in front of the row, then
- * hand over to the orthographic one at the same framing, so nothing jumps
- * except the perspective itself. It is a one-shot: the first drag or scroll
+ * Fixed views, as in a 3D editor: 'front' looks straight at the row, 'end'
+ * looks along it from the small end. The perspective camera flies there,
+ * then hands over to the orthographic one at the same framing, so nothing
+ * jumps except the perspective itself. One-shot: the first drag or scroll
  * hands the scene back to the ordinary camera where it stands.
  */
-function setSide(on, instant = false) {
-  if (on === side) {
-    if (on && state.frame) flyFrame(state.frame, instant ? 0 : 1200);
-    return;
-  }
-  side = on;
-  if (on) {
-    if (state.frame) flyFrame(state.frame, instant ? 0 : 1200);
-    if (instant) toOrtho(); else switchAt = camTween;
-  } else {
+function setSide(view, instant = false) {
+  if (view === true) view = 'front';
+  if (!view) view = null;
+  const was = side;
+  side = view;
+  if (view) {
+    flyFrame(viewFrame(), instant ? 0 : 1200);
+    if (camera === ortho) { /* already orthographic: the frame tween is enough */ }
+    else if (instant) toOrtho();
+    else switchAt = camTween;
+  } else if (was) {
     switchAt = null;
     toPersp();
-    if (!instant && state.frame) flyFrame(state.frame, 1200);
+    if (!instant) flyFrame(viewFrame(), 1200);
   }
   renderDock();
 }
@@ -739,27 +757,31 @@ function ensurePulse() {
   pulse.ring.renderOrder = 6;
 
   // The radius vector: Sun → front, aimed at the next planet in line, with
-  // the elapsed time and distance written at its tip.
+  // an arrowhead that keeps its size in pixels.
   const vecGeo = new LineGeometry();
   vecGeo.setPositions([0, 0, 0, 1, 0, 0]);
   pulse.vec = new Line2(vecGeo, new LineMaterial({
-    color: PULSE_COLOR, linewidth: 1.5, transparent: true, opacity: 0.7, depthWrite: false,
+    color: PULSE_COLOR, linewidth: 1.5, transparent: true, opacity: 0.75, depthWrite: false,
   }));
   pulse.vec.renderOrder = 6;
   pulse.ang = 0;
+  const head = new THREE.Mesh(
+    new THREE.ConeGeometry(0.5, 1, 16),
+    new THREE.MeshBasicMaterial({ color: PULSE_COLOR, transparent: true, opacity: 0.9, depthWrite: false }),
+  );
+  head.rotation.z = -Math.PI / 2;      // cone points +y; we want +x
+  head.position.x = -0.5;              // tip exactly on the front
+  pulse.arrow = new THREE.Group();
+  pulse.arrow.add(head);
+  pulse.arrow.renderOrder = 7;
 
-  pulse.tag = document.createElement('div');
-  pulse.tag.className = 'ptag';
-  el('labels').append(pulse.tag);
-
-  scene.add(pulse.mesh, pulse.ring, pulse.vec);
+  scene.add(pulse.mesh, pulse.ring, pulse.vec, pulse.arrow);
   setPulseVisible(false);
 }
 
 function setPulseVisible(on) {
   if (!pulse.mesh) return;
-  pulse.mesh.visible = pulse.ring.visible = pulse.vec.visible = on;
-  pulse.tag.style.opacity = on ? 1 : 0;
+  pulse.mesh.visible = pulse.ring.visible = pulse.vec.visible = pulse.arrow.visible = on;
 }
 
 /** Direction from the Sun to the planet the pulse will reach next. */
@@ -851,26 +873,17 @@ function placePulse(dt) {
   pulse.vec.material.opacity = 0.7 * fade;
 }
 
-const _tip = new THREE.Vector3();
-/**
- * The time/distance tag on the radius vector, in screen space. It sits
- * halfway between the Sun's surface and the front, like a dimension label,
- * so it never lands on the planet the vector points at.
- */
-function placePulseTag(w, h) {
+/** The arrowhead on the front: 14 px long whatever the zoom. */
+function placePulseArrow(h) {
   if (!pulse.mesh || !pulse.mesh.visible) return;
   const r = pulse.vec.scale.x;
-  const sun = state.origin;
-  const s = (sun.r * sun.size + r) / 2;
-  _tip.set(Math.cos(pulse.ang) * s, 0, Math.sin(pulse.ang) * s).add(sun.pos).project(camera);
-  const x = (_tip.x + 1) / 2 * w;
-  const y = (1 - _tip.y) / 2 * h;
-  const on = _tip.z < 1 && x > -80 && x < w + 80 && y > -40 && y < h + 40;
-  pulse.tag.style.opacity = on ? 1 : 0;
-  pulse.tagBox = on ? { left: x - 70, right: x + 70, top: y - 16, bottom: y + 16 } : null;
-  if (!on) return;
-  pulse.tag.innerHTML = `<b>${clockFace(pulse.sim)}</b><span>${lengthStr(C_LIGHT * pulse.sim)}</span>`;
-  pulse.tag.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+  const tip = pulse.arrow.position.set(Math.cos(pulse.ang) * r, 0, Math.sin(pulse.ang) * r).add(state.origin.pos);
+  const dist = camera.position.distanceTo(tip);
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  const pxPerUnit = camera === ortho ? h / ((ortho.top - ortho.bottom) / ortho.zoom) : (h / 2) / (dist * Math.tan(vfov / 2));
+  pulse.arrow.scale.setScalar(Math.min(14 / pxPerUnit, r * 0.5));
+  pulse.arrow.rotation.y = -pulse.ang;
+  pulse.arrow.children[0].material.opacity = (pulse.on ? 1 : 0.4) * 0.9;
 }
 
 // ----------------------------------------------------------------- UI ------
@@ -934,12 +947,13 @@ function renderDock() {
   if (def.multi) {
     const same = (names) => names.length === state.picked.size && names.every((n) => state.picked.has(n));
     add('Earth · Moon · Sun', same(PRESETS.home), () => setPicked(PRESETS.home));
-    add('The planets', same(PRESETS.planets), () => setPicked(PRESETS.planets));
-    add('Everything', same(PRESETS.all), () => setPicked(PRESETS.all));
+    add('Planets', same(PRESETS.planets), () => setPicked(PRESETS.planets));
+    add('All', same(PRESETS.all), () => setPicked(PRESETS.all));
     sep();
     add('Clear', false, () => setPicked([]));
     sep();
-    add('<i>▭</i>Compare', side, () => setSide(true), 'tog').title = 'Straight on, no perspective: drag or scroll to leave';
+    add('<i>▭</i>Front', side === 'front', () => setSide('front'), 'tog').title = 'Straight at the row, no perspective. Drag or scroll to leave.';
+    add('<i>◎</i>Along', side === 'end', () => setSide('end'), 'tog').title = 'Down the row from the small end: nested discs. Drag or scroll to leave.';
     return;
   }
   for (const [v, label] of def.variants) add(label, v === state.variant, () => setVariant(v));
@@ -1075,7 +1089,7 @@ function placeLabels(w, h, t) {
   // Greedy: the selected body first, then the biggest on screen; anything whose
   // box would land on an already placed label stays hidden.
   want.sort((p, q) => (q.sel - p.sel) || (q.px - p.px));
-  const placed = pulse.tagBox && pulse.mesh?.visible ? [pulse.tagBox] : [];
+  const placed = [];
   for (const p of want) {
     const box = { left: p.x - 44, right: p.x + 44, top: p.y - 22, bottom: p.y + 4 };
     const clash = placed.some((o) => !(box.right < o.left || box.left > o.right || box.bottom < o.top || box.top > o.bottom))
@@ -1163,7 +1177,7 @@ function frame() {
   // they are placed with last frame's camera and trail behind a drag.
   camera.updateMatrixWorld(true);
   stars.position.copy(camera.position);
-  placePulseTag(w, h);
+  placePulseArrow(h);
   {
     const earth = state.bodies.find((b) => b.name === 'Earth');
     const dir = MODES[state.mode].multi || !earth
