@@ -110,10 +110,11 @@ const stars = (() => {
 
 
 // Dark theme only: a sheet under the globes with a well below each one. Depth
-// follows the gravitational potential at the surface, GM/(R c^2): the most
-// compact body in the picture sets the scale, so the Moon beside the Earth
-// dips a little less, and next to a black hole they are all but flat. The
-// power 0.3 keeps small neighbours visible without reordering anyone.
+// follows the gravitational potential at the surface, GM/(R c^2), softened by a
+// small power so a neighbour is never flat next to a black hole. A body far
+// smaller than the biggest one is faded out: beside the Sun the Earth's dent
+// is lost in the Sun's own, so it is not drawn.
+let gridOn = true;
 const WELLS = 6;
 const fabric = (() => {
   const geo = new THREE.PlaneGeometry(2, 2, 240, 240);
@@ -151,7 +152,7 @@ const fabric = (() => {
         vec2 g = vXZ / uCell;
         vec2 fw = fwidth(g) + 1e-5;
         vec2 l = abs(fract(g - 0.5) - 0.5) / fw;
-        float line = 1.0 - clamp(min(l.x, l.y) - 0.4, 0.0, 1.0);
+        float line = (1.0 - clamp(min(l.x, l.y) - 0.4, 0.0, 1.0)) * (1.0 - smoothstep(0.3, 0.7, max(fw.x, fw.y)));
         float edge = 1.0 - smoothstep(0.25, 1.0, length(vXZ) / uSize);
         float a = line * edge * (0.22 + 0.5 * clamp(vDip / (uCell * 2.0), 0.0, 1.0));
         gl_FragColor = vec4(0.30, 0.85, 0.72, a);
@@ -164,25 +165,28 @@ const fabric = (() => {
 })();
 const massE = (b) => b.facts.massE ?? b.facts.mass ?? 0;   // Earth masses
 function updateFabric() {
-  const on = theme === 'dark' && MODES[state.mode].multi;
+  const on = gridOn && theme === 'dark' && MODES[state.mode].multi;
   fabric.visible = on;
   if (!on) return;
   const list = state.bodies.filter((b) => b.shown && b.size > 0.02 && massE(b) > 0)
     .sort((a, b) => massE(b) / b.r - massE(a) / a.r).slice(0, WELLS);
   if (!list.length) { fabric.visible = false; return; }
   const top = list[0], phiMax = massE(top) / top.r, big = Math.max(...list.map((b) => b.r)), H = big * 1.4;
+  const focus = list.find((b) => b.name === state.last) ?? top;
   const u = fabric.material.uniforms;
   let low = Infinity, reach = 0;
   u.uWells.value.forEach((w, i) => {
     const b = list[i];
     if (!b) { w.set(0, 0, 0, 0); return; }
-    w.set(b.pos.x, b.pos.y, b.pos.z, H * Math.pow(massE(b) / b.r / phiMax, 0.3));
+    const rel = Math.min(1, Math.max(0, (b.r / big - 0.004) / 0.036));
+    const fade = b === top ? 1 : rel * rel * (3 - 2 * rel);
+    w.set(b.pos.x, b.pos.y, b.pos.z, H * Math.pow(massE(b) / b.r / phiMax, 0.15) * fade);
     u.uW.value[i] = b.r * 1.2;
     low = Math.min(low, b.pos.y - b.r * 1.15);
     reach = Math.max(reach, Math.abs(b.pos.x) + b.r);
   });
   u.uBase.value = low;
-  u.uCell.value = Math.max(0.25, big * 0.45);
+  u.uCell.value = Math.max(0.12, Math.min(big * 0.45, Math.max(focus.r * 0.45, big * 0.08)) * 0.5);
   u.uSize.value = Math.max(30, reach * 3.5, big * 8);
 }
 
@@ -381,17 +385,7 @@ function regolith(m) {
         float lum = dot(diffuseColor.rgb, vec3(0.333));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.88, 0.95, 1.10), smoothstep(0.40, 0.16, lum));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.10, 1.0, 0.88), smoothstep(0.30, 0.62, lum));
-        diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.18)) * 1.18;
-        {
-          float lat = asin(clamp(qo.y, -1.0, 1.0)), lon = atan(qo.x, qo.z);
-          vec2 gu = vec2(lat, lon) * (12.0 / 3.14159265);
-          vec2 fw = fwidth(gu) + 1e-5;
-          vec2 gl = abs(fract(gu - 0.5) - 0.5) / fw;
-          float line = 1.0 - clamp(min(gl.x, gl.y) - 0.35, 0.0, 1.0);
-          float eq = 1.0 - clamp(abs(lat) * 12.0 / 3.14159265 / fw.x - 0.35, 0.0, 1.0);
-          line *= 1.0 - smoothstep(0.35, 0.9, fw.x * 12.0);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.95, 0.78), clamp(line * 0.34 + eq * 0.4, 0.0, 0.7));
-        }`)
+        diffuseColor.rgb = pow(diffuseColor.rgb, vec3(1.18)) * 1.18;`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += diffuseColor.rgb * vec3(0.10, 0.15, 0.26) * 0.20
           * (1.0 - smoothstep(-0.12, 0.2, dot(normalize(vNormal), normalize(uSunR))));`);
@@ -874,6 +868,7 @@ function setPicked(names) {
 function zoomTo(b) {
   if (!MODES[state.mode].multi) { select(b); return; }
   if (!state.picked.has(b.name)) setPicked([...state.picked, b.name]);
+  state.last = b.name;
   if (!side) { flyToBody(b); return; }
   const x = (b.tween ? b.tween.to : b.pos).x;
   if (side === 'front') flyFrame({ center: new THREE.Vector3(x, 0, 0), width: b.full * 2 * 1.25, el: 0, az: 0 }, 1200);
@@ -1139,7 +1134,8 @@ function renderList() {
   const list = el('list');
   list.innerHTML = '';
   const multi = MODES[state.mode].multi;
-  for (const b of state.bodies) {
+  // Sizes lists bodies as they stand in the row, small to large; Distances keeps the order from the Sun.
+  for (const b of multi ? [...state.bodies].sort((p, q) => p.ext - q.ext) : state.bodies) {
     const row = document.createElement('div');
     row.className = 'rowwrap';
     const btn = document.createElement('button');
@@ -1184,9 +1180,11 @@ function renderDock() {
     add('Earth · Moon · Sun', same(PRESETS.home), () => setPicked(PRESETS.home));
     add('Sun & planets', same(PRESETS.all), () => setPicked(PRESETS.all));
     sep();
-    add('Clear', false, () => setPicked([]));
+    add('Clear', false, () => setPicked(['Earth']));
     sep();
-    add('<i>⤢</i>Fit', false, () => flyFrame(viewFrame(), 1200)).title = 'Frame everything that is shown';
+    const g = add('<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 7h14M3 13h14M7 3v14M13 3v14"/></svg>', gridOn, () => { gridOn = !gridOn; renderDock(); }, 'tog');
+    g.title = 'Show or hide the floor grid (dark theme)';
+    g.setAttribute('aria-label', 'Toggle floor grid');
     add('<i>▭</i>Front', side === 'front', () => setSide('front'), 'tog').title = 'Straight at the row, no perspective. Drag or scroll to leave.';
     add('<i>◎</i>Along', side === 'end', () => setSide('end'), 'tog').title = 'Down the row from the small end: nested discs. Drag or scroll to leave.';
     return;
@@ -1523,6 +1521,6 @@ requestAnimationFrame(frame);
 
 // Handy for the screenshot tool and the console.
 window.__demo = {
-  setMode, setVariant, select, zoomTo, startPulse, setPicked, togglePick, setSide, setTheme, pulseRadius, compress, U,
+  setMode, setVariant, select, zoomTo, startPulse, setPicked, togglePick, setSide, flyFrame, viewFrame, setTheme, pulseRadius, compress, U,
   state, pulse, controls, flyToBody, renderer, scene, get camera() { return camera; }, get side() { return side; },
 };

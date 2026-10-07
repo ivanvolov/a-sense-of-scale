@@ -19,6 +19,13 @@ const [W, H] = opt('--size', '1512x857').split('x').map(Number);
 
 // name, mode, variant, selected body (solar) or picked names (sizes), extra steps, settle ms
 const SHOTS = [
+  ['n1-em', 'earth-moon', null, ['Moon', 'Earth'], ['dark'], 2500],
+  ['n1-em-zoom', 'earth-moon', null, ['Earth', 'Moon'], ['dark', ['zoom', 'Earth'], 2200], 1500],
+  ['n2-ems', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['dark', ['zoom', 'Earth'], 2000, 'wide'], 2500],
+  ['n3-emsS', 'earth-moon', null, ['Earth', 'Moon', 'Sun', 'Saturn'], ['dark', 'wide'], 2500],
+  ['n4-esb', 'earth-moon', null, ['Earth', 'Moon', 'Sun', 'Saturn', 'Betelgeuse'], ['dark', 'wide'], 2500],
+  ['n5-embh', 'earth-moon', null, ['Earth', 'Moon', 'Sagittarius A*'], ['dark', 'wide'], 2500],
+  ['n6-bhb', 'earth-moon', null, ['Sagittarius A*', 'Betelgeuse'], ['dark', 'wide'], 2500],
   ['g-em-bh', 'earth-moon', null, ['Earth', 'Moon', 'Sagittarius A*'], ['dark'], 2800],
   ['g-ems', 'earth-moon', null, ['Earth', 'Moon', 'Sun'], ['dark'], 2800],
   ['g-esb', 'earth-moon', null, ['Earth', 'Sun', 'Betelgeuse'], ['dark'], 2800],
@@ -97,8 +104,8 @@ for (const [name, mode, variant, body, steps, settle] of SHOTS) {
     else if (s === 'light') await page.evaluate(() => window.__demo.startPulse());
     else if (s === 'dark') await page.evaluate(() => window.__demo.setTheme('dark'));
     else if (s === 'wide') {
-      await page.locator('button', { hasText: 'Fit' }).first().click();
-      await page.waitForTimeout(1600);
+      await page.evaluate(() => window.__demo.flyFrame(window.__demo.viewFrame(), 0));
+      await page.waitForTimeout(600);
       await page.evaluate(() => {
         const d = window.__demo, cam = d.camera;
         let x0 = 1e30, x1 = -1e30, yTop = -1e30, yBot = 1e30;
