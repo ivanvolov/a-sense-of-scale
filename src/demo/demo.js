@@ -1120,13 +1120,10 @@ function select(b, instant = false) {
   const head = el('head');
   const fill = () => {
     el('titleText').textContent = b.name;
-    const p = PLANETS.find((q) => q.name === b.name);
-    el('epithet').textContent = p
-      ? `${(p.a / AU).toFixed(2)} AU from the Sun · light takes ${lightTime(p.a - SUN.r)}`
-      : '';
+    el('epithet').textContent = '';
     el('blurb').textContent = '';
     el('chips').innerHTML = '';
-    head.classList.toggle('empty', !p);
+    head.classList.add('empty');
   };
   if (instant) fill();
   else {
