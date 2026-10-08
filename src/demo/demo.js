@@ -702,7 +702,7 @@ function setTip(text) { el('tipText').textContent = text ?? TIP_DEFAULT; }
  * only its limb is in frame — unless it is the only thing picked, in which
  * case it is the frame.
  */
-function layoutSizes(instant = false) {
+function layoutSizes(instant = false, reframe = true) {
   const picked = state.bodies.filter((b) => state.picked.has(b.name));
   // Smallest to largest by footprint, so Saturn's rings end the row instead
   // of lying across Jupiter and Uranus. The Sun stands past the end as a
@@ -770,7 +770,7 @@ function layoutSizes(instant = false) {
   // when picked, is the wall behind them all.
   const big = row.length ? Math.max(1, ...row.map(full)) : (star ? star.r : 2);
   state.endFrame = { center: new THREE.Vector3(first ?? 0, 0, 0), width: big * 2.4, el: 0, az: -90 };
-  flyFrame(viewFrame(), instant ? 0 : 1500);
+  if (reframe) flyFrame(viewFrame(), instant ? 0 : 1500);
 }
 
 /** The framing for the current view: free camera, straight-on, or along the row. */
@@ -845,7 +845,7 @@ function togglePick(b) {
   if (state.picked.has(b.name)) state.picked.delete(b.name);
   else state.picked.add(b.name);
   state.last = state.picked.has(b.name) ? b.name : [...state.picked].pop() ?? null;
-  layoutSizes();
+  layoutSizes(false, false);
   renderList();
   renderDock();
   renderOverview();
