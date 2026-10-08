@@ -485,7 +485,7 @@ body.sizes .rowwrap .body { padding-right: 66px; }
   cursor: pointer;
 }
 #modes button.on { background: var(--teal-soft); color: var(--teal-ink); }
-#modes #theme {
+#modes #theme, #modes #gear {
   flex: none;
   width: 38px;
   padding: 0;
@@ -495,7 +495,7 @@ body.sizes .rowwrap .body { padding-right: 66px; }
   line-height: 1;
   color: var(--dim);
 }
-#modes #theme:hover { background: var(--hover); }
+#modes #theme:hover, #modes #gear:hover { background: var(--hover); }
 
 #side {
   grid-column: 3;
@@ -698,6 +698,7 @@ body.sizes #head, body.sizes #dots { display: none; }
     <button data-mode="earth-moon" class="on">Sizes</button>
     <button data-mode="solar-system">Distances</button>
     <button id="theme" title="Light / dark" aria-label="Toggle theme">☾</button>
+    <button id="gear" title="Zoom settings (S)" aria-label="Zoom settings">⚙</button>
   </div>
 
   <div id="side">

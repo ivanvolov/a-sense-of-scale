@@ -1548,11 +1548,12 @@ for (const [id, key] of [['zoomStrength', 'strength'], ['zoomBoost', 'boost']]) 
 applyZoomCfg();
 const toggleSettings = (on) => el('settings').classList.toggle('on', on);
 el('settingsClose').onclick = () => toggleSettings(false);
+el('gear').onclick = () => toggleSettings();
 
 const zoomDir = (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return null;
-  if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') return 'in';
-  if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') return 'out';
+  if (e.key === '+' || e.key === '=' || e.code === 'Equal' || e.code === 'NumpadAdd') return 'in';
+  if (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract') return 'out';
   return null;
 };
 const typing = (e) => e.target instanceof HTMLElement && e.target.matches('input[type=number], input[type=text]');
@@ -1561,7 +1562,7 @@ addEventListener('keydown', (e) => {
   const z = zoomDir(e);
   if (z) { e.preventDefault(); zoomKeys.add(z); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 's' || e.key === 'S') toggleSettings();
+  if (e.code === 'KeyS') toggleSettings();
   else if (e.key === 'Escape') toggleSettings(false);
 });
 addEventListener('keyup', (e) => { const z = zoomDir(e); if (z) zoomKeys.delete(z); });
@@ -1583,7 +1584,7 @@ addEventListener('keydown', (e) => {
     startPulse();
   } else if (e.key === '1') setMode('earth-moon');
   else if (e.key === '2') setMode('solar-system');
-  else if (e.key === 'v') {
+  else if (e.code === 'KeyV') {
     const vs = MODES[state.mode].variants.map((x) => x[0]);
     setVariant(vs[(vs.indexOf(state.variant) + 1) % vs.length]);
   }
