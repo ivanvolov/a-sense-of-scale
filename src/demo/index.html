@@ -606,6 +606,32 @@ body.sizes #head, body.sizes #dots { display: none; }
 #tip button { margin-left: auto; appearance: none; border: 0; background: transparent; color: var(--faint); font-size: 16px; cursor: pointer; }
 
 
+#settings {
+  position: fixed;
+  left: 50%;
+  top: 22px;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 340px;
+  padding: 16px 18px 14px;
+  display: none;
+  font-size: 12px;
+  color: var(--ink);
+}
+#settings.on { display: block; }
+#settings h3 { margin: 0 0 12px; font: 600 13px var(--display); letter-spacing: .02em; display: flex; align-items: center; }
+#settings h3 kbd, #settings .hint kbd { font: 500 11px var(--mono); padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--card-solid); color: var(--dim); }
+#settings h3 kbd { margin-left: 8px; }
+#settings h3 button { margin-left: auto; appearance: none; border: 0; background: transparent; color: var(--faint); font-size: 16px; cursor: pointer; }
+#settings .row { margin-bottom: 12px; }
+#settings .row label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-weight: 500; }
+#settings .row label small { font-weight: 400; color: var(--dim); }
+#settings .ctl { display: flex; align-items: center; gap: 10px; }
+#settings input[type=range] { flex: 1; accent-color: var(--teal); }
+#settings input[type=number] { width: 64px; padding: 4px 6px; font: 500 12px var(--mono); color: var(--ink); background: var(--card-solid); border: 1px solid var(--line); border-radius: 6px; }
+#settings .hint { color: var(--dim); line-height: 1.5; }
+#settings .hint kbd { margin: 0 1px; }
+
 #loading {
   position: fixed;
   inset: 0;
@@ -685,6 +711,19 @@ body.sizes #head, body.sizes #dots { display: none; }
       <button id="tipClose" aria-label="Dismiss">×</button>
     </div>
   </div>
+</div>
+
+<div id="settings" class="card">
+  <h3>Zoom <kbd>S</kbd><button id="settingsClose" aria-label="Close">×</button></h3>
+  <div class="row">
+    <label for="zoomStrength">Strength <small>per second, in e-folds</small></label>
+    <div class="ctl"><input id="zoomStrength" type="range" min="0.1" max="6" step="0.05"><input id="zoomStrengthN" type="number" min="0.1" max="6" step="0.05"></div>
+  </div>
+  <div class="row">
+    <label for="zoomBoost">Distance boost <small>faster the farther you are</small></label>
+    <div class="ctl"><input id="zoomBoost" type="range" min="0" max="2" step="0.05"><input id="zoomBoostN" type="number" min="0" max="2" step="0.05"></div>
+  </div>
+  <div class="hint">Hold <kbd>+</kbd> / <kbd>−</kbd> to zoom. Applies to the scroll wheel too. Speed at the current distance: <b id="zoomNow">–</b></div>
 </div>
 
 <div id="loading">Loading textures</div>

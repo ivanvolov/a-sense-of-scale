@@ -1420,6 +1420,8 @@ function frame() {
     }
   }
 
+  tickKeyZoom(dt);
+  if (el('settings').classList.contains('on')) el('zoomNow').textContent = `×${Math.exp(zoomRate()).toFixed(2)} / s`;
   tickPulse(dt);
   placePulse(dt);
   tickClock();
@@ -1490,7 +1492,83 @@ el('theme').onclick = () => setTheme(theme === 'dark' ? 'light' : 'dark');
   setTheme(saved === 'dark' ? 'dark' : 'light');
 }
 
+
+// ---------------------------------------------------------- key zoom -----
+// Zoom is multiplicative, so one press moves farther in absolute terms the
+// farther out you are. On top of that the rate itself grows with distance
+// ("boost"), or the far views crawl: a fixed rate that is right at the Earth is
+// hopeless at Betelgeuse.
+const zoomCfg = { strength: 1, boost: 0.3 };
+try { Object.assign(zoomCfg, JSON.parse(localStorage.getItem('demo-zoom') || '{}')); } catch { /* private mode */ }
+const zoomKeys = new Set();
+
+function viewDistance() {
+  if (camera !== ortho) return camera.position.distanceTo(controls.target);
+  const vfov = THREE.MathUtils.degToRad(persp.fov);
+  return ((orthoW / ortho.zoom) / 2) / (Math.tan(vfov / 2) * persp.aspect);
+}
+
+// e-folds of distance per second at the current view
+function zoomRate() {
+  return zoomCfg.strength * (1 + zoomCfg.boost * Math.max(0, Math.log10(viewDistance() / 10)));
+}
+
+function applyZoomCfg() {
+  controls.zoomSpeed = zoomCfg.strength;
+  for (const k of ['strength', 'boost']) {
+    const id = k === 'strength' ? 'zoomStrength' : 'zoomBoost';
+    el(id).value = zoomCfg[k];
+    el(id + 'N').value = zoomCfg[k];
+  }
+  try { localStorage.setItem('demo-zoom', JSON.stringify(zoomCfg)); } catch { /* private mode */ }
+}
+
+function tickKeyZoom(dt) {
+  if (!zoomKeys.size) return;
+  const dir = (zoomKeys.has('in') ? 1 : 0) - (zoomKeys.has('out') ? 1 : 0);
+  if (!dir) return;
+  if (camTween) camTween = null;
+  if (follow) { follow = false; renderDock(); }
+  const f = Math.exp(-dir * zoomRate() * dt);
+  if (camera === ortho) {
+    ortho.zoom = clamp(ortho.zoom / f, 1e-6, 1e6);
+    ortho.updateProjectionMatrix();
+  } else {
+    const off = camera.position.clone().sub(controls.target);
+    off.setLength(clamp(off.length() * f, controls.minDistance, controls.maxDistance));
+    camera.position.copy(controls.target).add(off);
+  }
+}
+
+for (const [id, key] of [['zoomStrength', 'strength'], ['zoomBoost', 'boost']]) {
+  const set = (v) => { if (Number.isFinite(v)) { zoomCfg[key] = clamp(v, Number(el(id).min), Number(el(id).max)); applyZoomCfg(); } };
+  el(id).oninput = (e) => set(parseFloat(e.target.value));
+  el(id + 'N').onchange = (e) => set(parseFloat(e.target.value));
+}
+applyZoomCfg();
+const toggleSettings = (on) => el('settings').classList.toggle('on', on);
+el('settingsClose').onclick = () => toggleSettings(false);
+
+const zoomDir = (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+  if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') return 'in';
+  if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') return 'out';
+  return null;
+};
+const typing = (e) => e.target instanceof HTMLElement && e.target.matches('input[type=number], input[type=text]');
 addEventListener('keydown', (e) => {
+  if (typing(e)) return;
+  const z = zoomDir(e);
+  if (z) { e.preventDefault(); zoomKeys.add(z); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 's' || e.key === 'S') toggleSettings();
+  else if (e.key === 'Escape') toggleSettings(false);
+});
+addEventListener('keyup', (e) => { const z = zoomDir(e); if (z) zoomKeys.delete(z); });
+addEventListener('blur', () => zoomKeys.clear());
+
+addEventListener('keydown', (e) => {
+  if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
   if (MODES[state.mode].multi) {
     if (e.key === '1') setMode('earth-moon');
     else if (e.key === '2') setMode('solar-system');
