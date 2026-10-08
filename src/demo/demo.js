@@ -841,10 +841,21 @@ function fitOrtho() {
   ortho.updateProjectionMatrix();
 }
 
+// While the row re-lays itself out, the camera rides along with the focused
+// body, so adding Saturn does not make the Sun slide across the screen.
+let anchor = null;
+
 function togglePick(b) {
-  if (state.picked.has(b.name)) state.picked.delete(b.name);
-  else state.picked.add(b.name);
-  state.last = state.picked.has(b.name) ? b.name : [...state.picked].pop() ?? null;
+  const adding = !state.picked.has(b.name);
+  const keep = state.picked.has(state.last) ? state.last : null;
+  if (adding) state.picked.add(b.name);
+  else state.picked.delete(b.name);
+  // The focus (brackets, grid cell) stays where it is; it moves only when it
+  // is the body that was just hidden, or there was none.
+  if (adding) state.last = keep ?? b.name;
+  else if (b.name === state.last || !state.picked.has(state.last)) state.last = [...state.picked].pop() ?? null;
+  const f = state.bodies.find((q) => q.name === state.last);
+  anchor = f && f !== b && f.shown && f.size > 0.02 && side !== 'end' ? { b: f, x: f.pos.x } : null;
   layoutSizes(false, false);
   renderList();
   renderDock();
@@ -1411,6 +1422,16 @@ function frame() {
     b.group.visible = b.size > 0.001;
     b.spin.rotation.y += dt * 0.05;
     for (const c of b.spin.children) if (c.userData.spin) c.rotation.y += dt * 0.05 * (c.userData.spin - 1);
+  }
+  if (anchor) {
+    const dx = anchor.b.pos.x - anchor.x;
+    anchor.x = anchor.b.pos.x;
+    if (dx) {
+      camera.position.x += dx;
+      controls.target.x += dx;
+      if (camTween) for (const v of [camTween.p0, camTween.p1, camTween.t0, camTween.t1]) v.x += dx;
+    }
+    if (!anchor.b.tween) anchor = null;
   }
   for (const o of state.orbits) {
     if (o.userData.target != null) {
