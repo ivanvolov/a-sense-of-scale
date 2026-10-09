@@ -76,7 +76,7 @@ export const FACTS = {
   },
   Betelgeuse: {
     epithet: 'The Red Supergiant',
-    blurb: 'A red supergiant 550 light-years away, about 760 Suns across. In the Sun\'s place it would swallow Mars and the whole asteroid belt and stop just short of Jupiter.',
+    blurb: 'A red supergiant 550 light-years away, about 1,500 Suns across (radius ~760). In the Sun\'s place it would swallow Mars and the whole asteroid belt and stop just short of Jupiter.',
     day: null, massText: '16–19 ☉', massE: 5.8e6, kind: 'star', emissive: true, limb: true,
     tex: 'betelgeuse.jpg', proc: true, limbDark: '#3a0800',
   },
